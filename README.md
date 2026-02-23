@@ -1,69 +1,41 @@
 # Family Timeline ⏳
 
-A premium, secure, multi-user web application designed for families to record and share life events in a beautiful, interactive timeline.
+A premium, secure, multi-user web application designed for families to record and share life events. This project is a unified **Laravel + React** monolith.
 
-![Landing Page Preview](https://via.placeholder.com/800x400.png?text=Family+Timeline+Preview)
+![Dashboard Preview](https://via.placeholder.com/800x400.png?text=Family+Timeline+Dashboard)
 
 ## ✨ Features
 
-- **Multi-Family Groups**: Create private spaces for different branches of your family or friend circles.
-- **Beautiful Interactive Timeline**: A chronological story of your family, from births to weddings and everything in between.
-- **Granular Privacy**: Control visibility for every event (Public, Group Members only, or strictly Private).
-- **Media Support**: Upload photos directly or link to external albums (Google Photos, iCloud, etc.).
-- **Role-Based Access**: Manage group members with Owner, Admin, and Member roles.
-- **Secure Registration**: Platform access is restricted via admin-managed referral codes to ensure a safe environment.
-- **Modern Dark UI**: A high-end, responsive design with glassmorphism and smooth animations.
+- **Multi-Family Groups**: Create private spaces for different circles.
+- **Interactive Timeline**: A chronological story with category-based filtering.
+- **Granular Privacy**: Public, Members-only, or strictly Private events.
+- **Referral System**: Registration restricted via admin-managed codes.
+- **Unified Structure**: Laravel-powered API and React-powered UI in one place.
+
+## 🚀 Quick Start (Laravel Herd)
+
+The project is already configured for [Laravel Herd](https://herd.laravel.com/).
+
+1. **Link Project**: Open Herd, go to **Sites**, and ensure the `timeline` folder is listed (Path: `C:\Dev\timeline`).
+2. **Access Root**: Visit `http://timeline.test` in your browser.
+3. **Setup Database**:
+   ```bash
+   php artisan migrate --seed
+   php artisan storage:link
+   ```
+4. **Development (Vite)**:
+   ```bash
+   npm install
+   npm run dev
+   ```
 
 ## 🛠 Tech Stack
 
-- **Backend**: [Laravel 11](https://laravel.com/) (PHP 8.2+)
-- **Frontend**: [React](https://reactjs.org/) + [Vite](https://vitejs.dev/)
+- **Backend**: Laravel 11
+- **Frontend**: React 18 + Vite (Integrated via Laravel Vite Plugin)
 - **Database**: MySQL / SQLite
-- **Authentication**: Laravel Sanctum (Token-based)
-- **Styling**: Vanilla CSS (Custom Design System)
-
-## 📁 Project Structure
-
-- `/backend`: Laravel API project
-- `/frontend`: Vite + React SPA project
-
-## 🚀 Quick Start (Local Development)
-
-### Prerequisites
-
-- PHP 8.2+ & Composer
-- Node.js & npm
-- SQLite (default) or MySQL
-
-### 1. Setup Backend (Herd)
-
-If you use **Laravel Herd**:
-1. Open Herd and go to **Sites**.
-2. Drag the `backend` folder into Herd.
-3. Note the URL (usually `http://backend.test`).
-4. In `frontend/.env.local`, ensure `VITE_API_URL` matches your Herd URL + `/api`.
-
-Alternatively, via CLI:
-```bash
-cd backend
-php artisan migrate --seed
-php artisan storage:link
-```
-
-### 2. Setup Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Visit `http://localhost:5173` to see the app!
+- **Styling**: Vanilla CSS with dark-mode aesthetic
 
 ## 📖 Documentation
 
 For detailed setup, usage guide, and deployment instructions, see [INSTRUCTIONS.md](./INSTRUCTIONS.md).
-
-## 📄 License
-
-Proprietary. All rights reserved.

@@ -1,75 +1,58 @@
-# Usage & Deployment Guide 📖
+# Usage & Deployment Guide (Unified Monolith) 📖
 
-This document provides detailed instructions on how to use, configure, and deploy the Family Timeline application.
+This guide covers the Family Timeline application, now unified into a single Laravel + React project.
 
-## 👥 User Roles & Permissions
+## 🚀 Development Setup
 
-### Platform Level
-- **Super Admin**: Can manage referral codes, promote users to admins, and has full access to all groups/events.
-- **User**: Standard registered user. Can create and join groups.
+### Laravel Herd (Recommended)
+1. Ensure the project is linked in **Herd** (Path: `C:\Dev\timeline`).
+2. Your site is available at `http://timeline.test`.
 
-### Group Level
-- **Owner**: The creator of the group. Full control over settings, members, and all events.
-- **Admin**: Can manage members, invite codes, and all events within the group.
-- **Member**: Can view events and post their own events.
-
-## 🎟 Registration & Invites
-
-The platform uses a two-tier invite system:
-
-1.  **Platform Referral Codes**: Required to register a new account. These are created by Super Admins in the **Admin Panel**.
-2.  **Group Invite Codes**: Used by registered users to join specific groups. These are managed by Group Owners/Admins in **Group Settings**.
-
-## 📅 Managing Events
-
-### Visibility Levels
-- **🌍 Public**: Visible to anyone who visits the group link (even if not logged in).
-- **👥 Members**: Only visible to registered members of that specific group.
-- **🔒 Private**: Only visible to the event creator and group Admins/Owners.
-
-### Media
-- **Image Upload**: Upload a single featured photo for the event.
-- **Album Link**: Provide a URL to an external photo album (e.g., Google Photos, Shared iCloud Album) for a full gallery experience.
-
----
-
-## 🚀 Deployment Instructions
-
-This app is optimized for **Hostinger Shared Hosting** (or similar cPanel/HPanel environments).
-
-### 1. Backend Deployment (Laravel)
-
-1.  **Prepare Files**: Run `composer install --optimize-autoloader --no-dev`.
-2.  **Upload**: Upload the `backend` folder contents to your server (e.g., in a `api` subdirectory or separate folder).
-3.  **Database**: 
-    - Create a MySQL database and user in your Hosting panel.
-    - Update the `.env` file on the server with its credentials.
-4.  **Public Folder**: Set your web server's "Document Root" to point to the `public/` folder of the Laravel installation.
-5.  **Migrations**: Run `php artisan migrate --seed` (via SSH or a cron job if SSH is unavailable).
-6.  **Storage Link**: Run `php artisan storage:link`.
-
-### 2. Frontend Deployment (React)
-
-1.  **Build**: In the `frontend` folder, run `npm run build`.
-2.  **CORS**: Update the `backend/.env` `FRONTEND_URL` to match your production domain.
-3.  **Upload**: Upload the contents of the `frontend/dist` folder to your server's main public directory (e.g., `public_html`).
-4.  **Routing**: Ensure you have an `.htaccess` file in `public_html` to handle SPA routing:
-
-```apacheconf
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-  RewriteRule ^index\.html$ - [L]
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /index.html [L]
-</IfModule>
+### Database
+```bash
+php artisan migrate --seed
+php artisan storage:link
 ```
 
+### Frontend (HMR)
+To enjoy Hot Module Replacement for the React UI:
+```bash
+npm install
+npm run dev
+```
+Visit `http://timeline.test` — Laravel will automatically proxy to the Vite dev server.
+
 ---
 
-## 🛠 Troubleshooting
+## 👥 Usage Guide
 
-- **CORS Errors**: Ensure the `FRONTEND_URL` in the backend `.env` exactly matches your frontend URL (including `https://`).
-- **401 Unauthorized**: Sessions/tokens expire. Try logging out and back in.
-- **Image Not Showing**: Ensure the `storage` symlink correctly points to `public/storage`.
+### Registration
+The platform requires a **Referral Code**.
+1. Log in as a Super Admin (see `DatabaseSeeder.php` for initial credentials).
+2. Go to the **Admin Panel** to generate referral codes.
+3. Share the code with new users to allow them to register.
+
+### Groups & Timelines
+1. Create a group (family, group of friends, etc.).
+2. Go to **Group Settings** to generate a **Group Invite Code**.
+3. Other registered users can use this code to join your specific group timeline.
+
+---
+
+## 🌎 Production Deployment (Hostinger)
+
+Deployment is simplified in the unified structure:
+
+1. **Build Frontend**: Run `npm run build`. This generates files in `public/build`.
+2. **Environment**: Update `.env` with production database and `APP_URL`.
+3. **Upload**: 
+   - Upload the entire project to a folder (e.g., `timeline_app`) **above** your `public_html`.
+   - Move or symlink the contents of the project's `public/` folder into `public_html`.
+4. **CORS**: Since it's a monolith, CORS issues are naturally non-existent.
+5. **Optimization**:
+   ```bash
+   composer install --optimize-autoloader --no-dev
+   php artisan config:cache
+   php artisan route:cache
+   php artisan view:cache
+   ```
