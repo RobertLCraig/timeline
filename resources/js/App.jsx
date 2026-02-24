@@ -12,6 +12,8 @@ import GroupSettings from './pages/GroupSettings';
 import EventForm from './pages/EventForm';
 import AdminPanel from './pages/AdminPanel';
 import Profile from './pages/Profile';
+import CategoryVisibility from './pages/CategoryVisibility';
+import GroupVisibility from './pages/GroupVisibility';
 import './index.css';
 
 export default function App() {
@@ -29,6 +31,8 @@ export default function App() {
           {/* Protected */}
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/settings/category-visibility" element={<ProtectedRoute><CategoryVisibility /></ProtectedRoute>} />
+          <Route path="/settings/group-visibility" element={<ProtectedRoute><GroupVisibility /></ProtectedRoute>} />
           <Route path="/groups/new" element={<ProtectedRoute><CreateGroup /></ProtectedRoute>} />
           <Route path="/g/:slug/settings" element={<ProtectedRoute><GroupSettings /></ProtectedRoute>} />
           <Route path="/g/:slug/events/new" element={<ProtectedRoute><EventForm /></ProtectedRoute>} />

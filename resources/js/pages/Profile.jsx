@@ -192,11 +192,56 @@ export default function Profile() {
                 </div>
 
                 {/* Join a Group hint */}
-                <div className="card fade-in" style={{ padding: 'var(--space-2xl)' }}>
+                <div className="card fade-in" style={{ padding: 'var(--space-2xl)', marginBottom: 'var(--space-lg)' }}>
                     <h2 style={{ marginBottom: 'var(--space-sm)' }}>Join a Group</h2>
                     <p className="text-muted text-sm">
                         To join a group, open the group link shared by a member (e.g. <code>/g/family-smith</code>) and enter your invite code there. Alternatively, you can enter an invite code during registration.
                     </p>
+                </div>
+
+                {/* Visibility Settings */}
+                <div className="card fade-in" style={{ padding: 'var(--space-2xl)' }}>
+                    <h2 style={{ marginBottom: 'var(--space-md)' }}>Visibility Settings</h2>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+                        <Link to="/settings/category-visibility" style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: 'var(--space-md) var(--space-lg)',
+                            background: 'var(--bg-secondary)',
+                            borderRadius: 'var(--border-radius)',
+                            border: '1px solid var(--border-color)',
+                            textDecoration: 'none',
+                            color: 'var(--text-primary)',
+                        }}>
+                            <div>
+                                <div style={{ fontWeight: 600 }}>Category Visibility Defaults</div>
+                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
+                                    Set the default social visibility for each event category
+                                </div>
+                            </div>
+                            <span style={{ color: 'var(--text-muted)' }}>→</span>
+                        </Link>
+                        <Link to="/settings/group-visibility" style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: 'var(--space-md) var(--space-lg)',
+                            background: 'var(--bg-secondary)',
+                            borderRadius: 'var(--border-radius)',
+                            border: '1px solid var(--border-color)',
+                            textDecoration: 'none',
+                            color: 'var(--text-primary)',
+                        }}>
+                            <div>
+                                <div style={{ fontWeight: 600 }}>Group Visibility Settings</div>
+                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
+                                    Classify each group socially to control which events you see
+                                </div>
+                            </div>
+                            <span style={{ color: 'var(--text-muted)' }}>→</span>
+                        </Link>
+                    </div>
                 </div>
 
             </div>

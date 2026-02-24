@@ -4,6 +4,15 @@ import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
 import './GroupTimeline.css';
 
+const SOCIAL_TIER_ICON = {
+    family:        '👨‍👩‍👧‍👦',
+    close_friends: '💛',
+    friends:       '🤝',
+    acquaintances: '👋',
+    public:        '🌍',
+    private:       '🔒',
+};
+
 export default function GroupTimeline() {
     const { slug } = useParams();
     const { user, isAuthenticated, refreshUser } = useAuth();
@@ -176,6 +185,11 @@ export default function GroupTimeline() {
                                             {new Date(event.event_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                                         </div>
                                         <div className="flex gap-xs items-center">
+                                            {event.social_visibility && (
+                                                <span className="badge badge-members" title={`Social visibility: ${event.social_visibility.replace('_', ' ')}`}>
+                                                    {SOCIAL_TIER_ICON[event.social_visibility]} {event.social_visibility.replace('_', ' ')}
+                                                </span>
+                                            )}
                                             <span className={`badge badge-${event.visibility}`}>
                                                 {event.visibility === 'public' ? '🌍' : event.visibility === 'members' ? '👥' : '🔒'} {event.visibility}
                                             </span>

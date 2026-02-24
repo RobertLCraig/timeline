@@ -7,6 +7,7 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\UploadController;
+use App\Http\Controllers\VisibilityController;
 
 /*
 |--------------------------------------------------------------------------
@@ -22,6 +23,7 @@ Route::prefix('auth')->group(function () {
 });
 
 Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/visibility/tiers', [VisibilityController::class, 'tiers']);
 
 // Group public page & public events (optional auth for visibility — uses Auth::guard('sanctum'))
 Route::get('/groups/{slug}', [GroupController::class, 'show']);
@@ -48,11 +50,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/groups/{slug}/join', [GroupController::class, 'join']);
     Route::delete('/groups/{slug}/leave', [GroupController::class, 'leave']);
 
+    // Social visibility settings
+    Route::get('/visibility/categories', [VisibilityController::class, 'categoryDefaults']);
+    Route::put('/visibility/categories/{categoryId}', [VisibilityController::class, 'updateCategoryDefault']);
+    Route::get('/visibility/groups', [VisibilityController::class, 'groupVisibility']);
+    Route::put('/visibility/groups/{groupId}', [VisibilityController::class, 'updateGroupVisibility']);
+
     // Group member routes (requires group membership)
     Route::middleware('group.role:owner,admin,member')->group(function () {
         Route::get('/groups/{slug}/members', [GroupController::class, 'members']);
         Route::post('/groups/{slug}/events', [EventController::class, 'store']);
-        // Members can edit/delete their own events (controller enforces ownership)
         Route::put('/groups/{slug}/events/{id}', [EventController::class, 'update']);
         Route::delete('/groups/{slug}/events/{id}', [EventController::class, 'destroy']);
     });

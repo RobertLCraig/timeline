@@ -2,18 +2,32 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 
+const TIER_LABELS = {
+    family:        { emoji: '👨‍👩‍👧‍👦', label: 'Family',        desc: 'Only family members' },
+    close_friends: { emoji: '💛',        label: 'Close Friends', desc: 'Close friends & family' },
+    friends:       { emoji: '🤝',        label: 'Friends',       desc: 'Friends and above' },
+    acquaintances: { emoji: '👋',        label: 'Acquaintances', desc: 'All group members' },
+    public:        { emoji: '🌍',        label: 'Public',        desc: 'Anyone, including non-members' },
+    private:       { emoji: '🔒',        label: 'Private',       desc: 'Only you' },
+};
+
 export default function EventForm() {
     const { slug, id } = useParams();
     const navigate = useNavigate();
     const isEdit = !!id;
 
     const [categories, setCategories] = useState([]);
+    // Per-user category defaults loaded from API
+    const [categoryDefaults, setCategoryDefaults] = useState({});
+
     const [form, setForm] = useState({
         title: '',
         description: '',
         event_date: '',
         category_id: '',
         visibility: 'members',
+        social_visibility: 'friends',
+        visibility_is_override: false,
         album_url: '',
     });
     const [imageFile, setImageFile] = useState(null);
@@ -23,7 +37,19 @@ export default function EventForm() {
     const [pageLoading, setPageLoading] = useState(isEdit);
 
     useEffect(() => {
-        api.get('/categories').then(d => setCategories(d.categories)).catch(() => { });
+        // Load categories and per-user category visibility defaults in parallel
+        Promise.all([
+            api.get('/categories'),
+            api.get('/visibility/categories').catch(() => ({ categories: [] })),
+        ]).then(([catData, visData]) => {
+            setCategories(catData.categories || []);
+            // Build lookup: category_id → visibility_tier
+            const defaults = {};
+            (visData.categories || []).forEach(c => {
+                defaults[c.id] = c.visibility_tier;
+            });
+            setCategoryDefaults(defaults);
+        });
 
         if (isEdit) {
             api.get(`/groups/${slug}/events/${id}`)
@@ -35,6 +61,8 @@ export default function EventForm() {
                         event_date: ev.event_date?.split('T')[0] || '',
                         category_id: ev.category_id || '',
                         visibility: ev.visibility,
+                        social_visibility: ev.social_visibility || 'friends',
+                        visibility_is_override: ev.visibility_is_override || false,
                         album_url: ev.album_url || '',
                     });
                     if (ev.image_url) {
@@ -47,7 +75,26 @@ export default function EventForm() {
     }, [slug, id]);
 
     const handleChange = (e) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
+        const { name, value, type, checked } = e.target;
+        const newValue = type === 'checkbox' ? checked : value;
+
+        if (name === 'category_id' && !form.visibility_is_override) {
+            // When category changes and not overriding, auto-update social_visibility
+            const defaultTier = categoryDefaults[value] || 'friends';
+            setForm(f => ({ ...f, category_id: value, social_visibility: defaultTier }));
+        } else {
+            setForm(f => ({ ...f, [name]: newValue }));
+        }
+    };
+
+    const handleOverrideToggle = (useOverride) => {
+        if (!useOverride) {
+            // Revert to category default
+            const defaultTier = categoryDefaults[form.category_id] || 'friends';
+            setForm(f => ({ ...f, visibility_is_override: false, social_visibility: defaultTier }));
+        } else {
+            setForm(f => ({ ...f, visibility_is_override: true }));
+        }
     };
 
     const handleImageChange = (e) => {
@@ -65,7 +112,6 @@ export default function EventForm() {
         try {
             let image_url = form.image_url;
 
-            // Upload image if selected
             if (imageFile) {
                 const formData = new FormData();
                 formData.append('image', imageFile);
@@ -92,6 +138,10 @@ export default function EventForm() {
             setLoading(false);
         }
     };
+
+    // Determine what social tier is currently shown (default from category or override)
+    const effectiveSocialTier = form.social_visibility || 'friends';
+    const categoryDefaultTier = categoryDefaults[form.category_id] || 'friends';
 
     if (pageLoading) {
         return <div className="loading-screen"><div className="spinner" /></div>;
@@ -162,26 +212,18 @@ export default function EventForm() {
                             />
                         </div>
 
+                        {/* Access Visibility (who can see the post at all) */}
                         <div className="form-group">
-                            <label className="form-label">Visibility</label>
+                            <label className="form-label">Access</label>
                             <div className="visibility-options">
                                 {[
-                                    { value: 'public', label: '🌍 Public', desc: 'Anyone can see' },
+                                    { value: 'public',  label: '🌍 Public',  desc: 'Anyone can see' },
                                     { value: 'members', label: '👥 Members', desc: 'Group members only' },
                                     { value: 'private', label: '🔒 Private', desc: 'Only you & admins' },
                                 ].map(opt => (
-                                    <label
-                                        key={opt.value}
-                                        className={`visibility-option ${form.visibility === opt.value ? 'active' : ''}`}
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="visibility"
-                                            value={opt.value}
-                                            checked={form.visibility === opt.value}
-                                            onChange={handleChange}
-                                            hidden
-                                        />
+                                    <label key={opt.value} className={`visibility-option ${form.visibility === opt.value ? 'active' : ''}`}>
+                                        <input type="radio" name="visibility" value={opt.value}
+                                            checked={form.visibility === opt.value} onChange={handleChange} hidden />
                                         <span className="visibility-label">{opt.label}</span>
                                         <span className="visibility-desc">{opt.desc}</span>
                                     </label>
@@ -189,15 +231,72 @@ export default function EventForm() {
                             </div>
                         </div>
 
+                        {/* Social Visibility Tier */}
+                        <div className="form-group">
+                            <label className="form-label">
+                                Social Visibility
+                                {!form.visibility_is_override && form.category_id && (
+                                    <span className="form-hint" style={{ marginLeft: 8, fontWeight: 400 }}>
+                                        — inheriting category default
+                                    </span>
+                                )}
+                            </label>
+
+                            {/* Toggle: Use category default vs Custom */}
+                            {form.category_id && (
+                                <div style={{ display: 'flex', gap: 'var(--space-sm)', marginBottom: 'var(--space-md)' }}>
+                                    <button
+                                        type="button"
+                                        className={`btn btn-sm ${!form.visibility_is_override ? 'btn-primary' : 'btn-secondary'}`}
+                                        onClick={() => handleOverrideToggle(false)}
+                                    >
+                                        Use category default
+                                        {!form.visibility_is_override && ` (${TIER_LABELS[categoryDefaultTier]?.label})`}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`btn btn-sm ${form.visibility_is_override ? 'btn-primary' : 'btn-secondary'}`}
+                                        onClick={() => handleOverrideToggle(true)}
+                                    >
+                                        Custom visibility
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Show tier options when override is active or no category selected */}
+                            {(form.visibility_is_override || !form.category_id) && (
+                                <div className="social-tier-options">
+                                    {Object.entries(TIER_LABELS).map(([value, { emoji, label, desc }]) => (
+                                        <label key={value} className={`visibility-option ${effectiveSocialTier === value ? 'active' : ''}`}>
+                                            <input type="radio" name="social_visibility" value={value}
+                                                checked={effectiveSocialTier === value} onChange={handleChange} hidden />
+                                            <span className="visibility-label">{emoji} {label}</span>
+                                            <span className="visibility-desc">{desc}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Show the inherited tier when not overriding */}
+                            {!form.visibility_is_override && form.category_id && (
+                                <div style={{
+                                    padding: 'var(--space-sm) var(--space-md)',
+                                    background: 'var(--bg-secondary)',
+                                    borderRadius: 'var(--border-radius-sm)',
+                                    border: '1px solid var(--border-color)',
+                                    fontSize: 'var(--font-size-sm)',
+                                    color: 'var(--text-secondary)',
+                                }}>
+                                    {TIER_LABELS[categoryDefaultTier]?.emoji} {TIER_LABELS[categoryDefaultTier]?.label}
+                                    {' — '}{TIER_LABELS[categoryDefaultTier]?.desc}
+                                </div>
+                            )}
+                        </div>
+
                         <div className="form-group">
                             <label className="form-label">Photo</label>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleImageChange}
-                                className="form-input"
-                                style={{ padding: '8px' }}
-                            />
+                            <input type="file" accept="image/*" onChange={handleImageChange}
+                                className="form-input" style={{ padding: '8px' }} />
                             {imagePreview && (
                                 <div style={{ marginTop: 'var(--space-sm)', borderRadius: 'var(--border-radius-sm)', overflow: 'hidden', maxHeight: '200px' }}>
                                     <img src={imagePreview} alt="Preview" style={{ width: '100%', objectFit: 'cover' }} />
@@ -207,14 +306,9 @@ export default function EventForm() {
 
                         <div className="form-group">
                             <label className="form-label">📸 Photo Album Link (optional)</label>
-                            <input
-                                type="url"
-                                name="album_url"
-                                className="form-input"
-                                value={form.album_url}
-                                onChange={handleChange}
-                                placeholder="https://photos.google.com/album/..."
-                            />
+                            <input type="url" name="album_url" className="form-input"
+                                value={form.album_url} onChange={handleChange}
+                                placeholder="https://photos.google.com/album/..." />
                             <span className="form-hint">Link to a Google Photos, iCloud, or other photo album.</span>
                         </div>
 
@@ -231,10 +325,13 @@ export default function EventForm() {
             </div>
 
             <style>{`
-        .visibility-options {
+        .visibility-options, .social-tier-options {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: var(--space-sm);
+        }
+        .social-tier-options {
+          grid-template-columns: repeat(3, 1fr);
         }
         .visibility-option {
           display: flex;
@@ -248,25 +345,15 @@ export default function EventForm() {
           transition: all var(--transition-fast);
           text-align: center;
         }
-        .visibility-option:hover {
-          border-color: var(--border-color-hover);
-        }
+        .visibility-option:hover { border-color: var(--border-color-hover); }
         .visibility-option.active {
           border-color: var(--color-primary);
           background: rgba(99, 102, 241, 0.05);
         }
-        .visibility-label {
-          font-weight: 600;
-          font-size: var(--font-size-sm);
-        }
-        .visibility-desc {
-          font-size: var(--font-size-xs);
-          color: var(--text-muted);
-        }
+        .visibility-label { font-weight: 600; font-size: var(--font-size-sm); }
+        .visibility-desc { font-size: var(--font-size-xs); color: var(--text-muted); }
         @media (max-width: 600px) {
-          .visibility-options {
-            grid-template-columns: 1fr;
-          }
+          .visibility-options, .social-tier-options { grid-template-columns: 1fr; }
         }
       `}</style>
         </div>
