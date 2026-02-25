@@ -1,7 +1,7 @@
 # Family Timeline — Claude Code Instructions
 
 ## Stack
-- **Backend**: Laravel 12, PHP 8.2+, SQLite, Laravel Sanctum (token auth)
+- **Backend**: Laravel 12, PHP 8.2+, SQLite, Laravel Sanctum (SPA cookie auth)
 - **Frontend**: React 19, React Router v7, Vite 6
 - **Dev environment**: Windows 11, Laravel Herd, Microsoft Edge
 
@@ -26,14 +26,15 @@ npm run build
 
 ## PHP / Artisan Commands
 
-PHP binary (via Herd):
+Use `php artisan` for all Artisan commands. On **Windows with Laravel Herd**, `php` may not be
+on the PATH — substitute the full binary path:
 ```
 "C:\Users\r\.config\herd\bin\php.bat"
 ```
 
 Run migrations:
 ```
-"C:\Users\r\.config\herd\bin\php.bat" "C:\Dev\timeline\artisan" migrate --force
+php artisan migrate --force
 ```
 
 Run tests:
@@ -59,7 +60,7 @@ c:\Dev\timeline\
 │   ├── context/
 │   │   └── AuthContext.jsx   # Auth state + setActiveGroup helper
 │   ├── lib/
-│   │   └── api.js            # API client (Bearer token support)
+│   │   └── api.js            # API client (cookie auth, XSRF header)
 │   ├── components/
 │   │   ├── Navbar.jsx
 │   │   └── ProtectedRoute.jsx
@@ -84,9 +85,11 @@ c:\Dev\timeline\
 ## Key Architecture Decisions
 
 ### Authentication
-- **Sanctum token auth** — tokens stored in localStorage, sent as `Bearer` header
-- On public routes (no `auth:sanctum` middleware): use `Auth::guard('sanctum')->user()` to optionally read the token — NOT `$request->user()`
-- `resources/js/lib/api.js` attaches the token automatically to all requests
+- **Sanctum SPA cookie auth** — session stored in an HttpOnly cookie; no tokens in localStorage
+- Flow: app mount → `GET /sanctum/csrf-cookie` → sets `XSRF-TOKEN` cookie → all mutations include `X-XSRF-TOKEN` header
+- `credentials: 'include'` is set on every fetch in `api.js`; Sanctum's `statefulApi()` middleware is registered in `bootstrap/app.php`
+- `SANCTUM_STATEFUL_DOMAINS` in `.env` must match the browser-visible domain (e.g. `timeline.test`)
+- On public routes (no `auth:sanctum` middleware): use `Auth::guard('sanctum')->user()` to optionally read the session — NOT `$request->user()`
 
 ### Active Group
 - Users have `active_group_id` on the `users` table — set when first joining/creating a group

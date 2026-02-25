@@ -137,9 +137,9 @@ class EventController extends Controller
         $group = $request->attributes->get('group');
 
         $request->validate([
-            'title'                  => 'required|string|max:255',
+            'title'                  => 'required|string|max:200',
             'description'            => 'nullable|string|max:5000',
-            'event_date'             => 'required|date',
+            'event_date'             => 'required|date|before_or_equal:' . now()->addYear()->toDateString(),
             'category_id'            => 'nullable|integer|exists:event_categories,id',
             'visibility'             => 'sometimes|in:public,members,private',
             'social_visibility'      => 'sometimes|nullable|in:family,close_friends,friends,acquaintances,public,private',
@@ -194,9 +194,9 @@ class EventController extends Controller
         }
 
         $request->validate([
-            'title'                  => 'sometimes|string|max:255',
+            'title'                  => 'sometimes|string|max:200',
             'description'            => 'sometimes|nullable|string|max:5000',
-            'event_date'             => 'sometimes|date',
+            'event_date'             => 'sometimes|date|before_or_equal:' . now()->addYear()->toDateString(),
             'category_id'            => 'sometimes|nullable|integer|exists:event_categories,id',
             'visibility'             => 'sometimes|in:public,members,private',
             'social_visibility'      => 'sometimes|nullable|in:family,close_friends,friends,acquaintances,public,private',

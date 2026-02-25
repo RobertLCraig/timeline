@@ -7,12 +7,27 @@ use App\Models\GroupInvite;
 use App\Models\GroupMember;
 use App\Models\User;
 use App\Models\ReferralCode;
+use BaconQrCode\Renderer\ImageRenderer;
+use BaconQrCode\Renderer\Image\SvgImageBackEnd;
+use BaconQrCode\Renderer\RendererStyle\RendererStyle;
+use BaconQrCode\Writer;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Validation\ValidationException;
+use Laravel\Socialite\Facades\Socialite;
+use PragmaRX\Google2FA\Google2FA;
 
 class AuthController extends Controller
 {
+    // Lock account for 15 minutes after this many consecutive failures
+    private const MAX_ATTEMPTS = 10;
+    private const LOCKOUT_MINUTES = 15;
+
     /**
      * POST /api/auth/register
      */
@@ -60,6 +75,9 @@ class AuthController extends Controller
             'platform_role' => 'user',
         ]);
 
+        // Send email verification notification
+        event(new Registered($user));
+
         // Increment referral code usage if used
         if (!empty($referralCode)) {
             $referralCode->increment('current_uses');
@@ -104,12 +122,9 @@ class AuthController extends Controller
 
         $user->load(['groups' => fn($q) => $q->withPivot('role')]);
 
-        $token = $user->createToken('auth-token')->plainTextToken;
+        Auth::login($user);
 
-        return response()->json([
-            'user'  => $user,
-            'token' => $token,
-        ], 201);
+        return response()->json(['user' => $user], 201);
     }
 
     /**
@@ -124,14 +139,32 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
+        // Check account lockout before verifying password
+        if ($user && $user->locked_until && now()->lt($user->locked_until)) {
+            $minutesLeft = (int) ceil(now()->diffInMinutes($user->locked_until));
+            throw ValidationException::withMessages([
+                'email' => ["Account locked due to too many failed attempts. Try again in {$minutesLeft} minute(s)."],
+            ]);
+        }
+
         if (!$user || !Hash::check($request->password, $user->password)) {
+            // Track failed attempt
+            if ($user) {
+                $attempts = $user->failed_login_attempts + 1;
+                $updates  = ['failed_login_attempts' => $attempts];
+                if ($attempts >= self::MAX_ATTEMPTS) {
+                    $updates['locked_until'] = now()->addMinutes(self::LOCKOUT_MINUTES);
+                }
+                $user->update($updates);
+            }
+
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
 
-        // Revoke previous tokens
-        $user->tokens()->delete();
+        // Successful login — reset lockout counters
+        $user->update(['failed_login_attempts' => 0, 'locked_until' => null]);
 
         // Load groups for the client to determine redirect
         $user->load(['groups' => fn($q) => $q->withPivot('role')]);
@@ -143,12 +176,17 @@ class AuthController extends Controller
             $user->active_group_id = $firstGroup->id;
         }
 
-        $token = $user->createToken('auth-token')->plainTextToken;
+        // If MFA is enabled, store user ID in session and challenge the client
+        if ($user->mfa_enabled) {
+            $request->session()->put('mfa_user_id', $user->id);
+            return response()->json(['mfa_required' => true]);
+        }
 
-        return response()->json([
-            'user'  => $user,
-            'token' => $token,
-        ]);
+        // Establish session (SPA cookie auth)
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return response()->json(['user' => $user]);
     }
 
     /**
@@ -156,7 +194,9 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return response()->json(['message' => 'Logged out successfully.']);
     }
@@ -217,5 +257,288 @@ class AuthController extends Controller
         $user->load(['groups' => fn($q) => $q->withPivot('role')]);
 
         return response()->json(['user' => $user]);
+    }
+
+    /**
+     * POST /api/auth/forgot-password
+     */
+    public function forgotPassword(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        // Always return success to prevent email enumeration attacks
+        Password::sendResetLink($request->only('email'));
+
+        return response()->json([
+            'message' => 'If an account exists for that email, a password reset link has been sent.',
+        ]);
+    }
+
+    /**
+     * POST /api/auth/reset-password
+     */
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token'    => 'required|string',
+            'email'    => 'required|email',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function (User $user, string $password) {
+                $user->forceFill([
+                    'password'              => Hash::make($password),
+                    'failed_login_attempts' => 0,
+                    'locked_until'          => null,
+                ])->save();
+
+                // Invalidate all existing sessions on password reset — user must log in again
+                \Illuminate\Support\Facades\DB::table('sessions')
+                    ->where('user_id', $user->id)
+                    ->delete();
+
+                event(new PasswordReset($user));
+            }
+        );
+
+        if ($status !== Password::PASSWORD_RESET) {
+            throw ValidationException::withMessages([
+                'email' => [__($status)],
+            ]);
+        }
+
+        return response()->json(['message' => 'Password reset successfully. Please log in with your new password.']);
+    }
+
+    // ── MFA ────────────────────────────────────────────────────────────────
+
+    /**
+     * POST /api/auth/mfa/enable
+     * Generates a new TOTP secret and returns a QR code SVG for the user to scan.
+     * The secret is stored in the session (not saved to DB until confirmed).
+     */
+    public function mfaEnable(Request $request)
+    {
+        $user = $request->user();
+
+        $google2fa = new Google2FA();
+        $secret = $google2fa->generateSecretKey(32);
+
+        // Temporarily store secret until the user confirms with a valid code
+        $request->session()->put('mfa_pending_secret', $secret);
+
+        $otpUrl = $google2fa->getQRCodeUrl(
+            config('app.name'),
+            $user->email,
+            $secret
+        );
+
+        $renderer = new ImageRenderer(
+            new RendererStyle(200),
+            new SvgImageBackEnd()
+        );
+        $qrSvg = (new Writer($renderer))->writeString($otpUrl);
+
+        return response()->json([
+            'secret' => $secret,
+            'qr_svg' => base64_encode($qrSvg),
+        ]);
+    }
+
+    /**
+     * POST /api/auth/mfa/confirm
+     * Saves the pending secret once the user has entered a valid code from their authenticator app.
+     */
+    public function mfaConfirm(Request $request)
+    {
+        $request->validate(['code' => 'required|string|digits:6']);
+
+        $secret = $request->session()->get('mfa_pending_secret');
+        if (!$secret) {
+            return response()->json(['message' => 'No pending MFA setup. Please start setup again.'], 422);
+        }
+
+        $google2fa = new Google2FA();
+        if (!$google2fa->verifyKey($secret, $request->code)) {
+            return response()->json(['message' => 'Invalid code. Please try again.'], 422);
+        }
+
+        $user = $request->user();
+        $user->update([
+            'totp_secret' => encrypt($secret),
+            'mfa_enabled' => true,
+        ]);
+
+        $request->session()->forget('mfa_pending_secret');
+
+        return response()->json([
+            'message' => 'Two-factor authentication has been enabled.',
+            'user'    => $user->fresh()->load(['groups' => fn($q) => $q->withPivot('role')]),
+        ]);
+    }
+
+    /**
+     * POST /api/auth/mfa/disable
+     * Disables TOTP MFA after verifying the user's password.
+     */
+    public function mfaDisable(Request $request)
+    {
+        $request->validate(['password' => 'required|string']);
+
+        $user = $request->user();
+
+        if (!Hash::check($request->password, $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => ['Incorrect password.'],
+            ]);
+        }
+
+        $user->update(['totp_secret' => null, 'mfa_enabled' => false]);
+
+        return response()->json([
+            'message' => 'Two-factor authentication has been disabled.',
+            'user'    => $user->fresh()->load(['groups' => fn($q) => $q->withPivot('role')]),
+        ]);
+    }
+
+    /**
+     * POST /api/auth/mfa/verify
+     * Completes login when MFA is required — verifies the TOTP code and establishes the session.
+     */
+    public function mfaVerify(Request $request)
+    {
+        $request->validate(['code' => 'required|string']);
+
+        $userId = $request->session()->get('mfa_user_id');
+        if (!$userId) {
+            return response()->json(['message' => 'No active MFA challenge. Please log in again.'], 422);
+        }
+
+        $user = User::find($userId);
+        if (!$user || !$user->mfa_enabled || !$user->totp_secret) {
+            $request->session()->forget('mfa_user_id');
+            return response()->json(['message' => 'MFA state is invalid. Please log in again.'], 422);
+        }
+
+        $google2fa = new Google2FA();
+        $secret    = decrypt($user->totp_secret);
+
+        if (!$google2fa->verifyKey($secret, $request->code)) {
+            return response()->json(['message' => 'Invalid authentication code.'], 422);
+        }
+
+        $request->session()->forget('mfa_user_id');
+
+        $user->load(['groups' => fn($q) => $q->withPivot('role')]);
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return response()->json(['user' => $user]);
+    }
+
+    // ── Google OAuth ────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/auth/oauth/google/redirect
+     * Redirects the browser to Google's OAuth consent screen.
+     * The frontend navigates the tab to this URL directly (window.location.href).
+     */
+    public function googleRedirect()
+    {
+        return Socialite::driver('google')->redirect();
+    }
+
+    /**
+     * GET /api/auth/oauth/google/callback
+     * Handles the Google OAuth callback: finds or creates a user, logs them in,
+     * and redirects back to the frontend so the SPA can detect the session.
+     */
+    public function googleCallback(Request $request)
+    {
+        try {
+            $googleUser = Socialite::driver('google')->user();
+        } catch (\Exception $e) {
+            return redirect(env('FRONTEND_URL', '/') . '?oauth_error=1');
+        }
+
+        // Find existing user by Google ID, or by matching email
+        $user = User::where('google_id', $googleUser->getId())->first()
+            ?? User::where('email', $googleUser->getEmail())->first();
+
+        if ($user) {
+            // Link Google ID if not already linked
+            if (!$user->google_id) {
+                $user->update([
+                    'google_id'         => $googleUser->getId(),
+                    'email_verified_at' => $user->email_verified_at ?? now(),
+                ]);
+            }
+        } else {
+            // Create a new account for this Google user
+            $user = User::create([
+                'name'              => $googleUser->getName(),
+                'email'             => $googleUser->getEmail(),
+                'google_id'         => $googleUser->getId(),
+                'password'          => Hash::make(Str::random(40)),
+                'platform_role'     => 'user',
+                'email_verified_at' => now(),
+            ]);
+
+            // Auto-join the demo group
+            $demoGroup = Group::where('slug', 'demo')->first();
+            if ($demoGroup) {
+                GroupMember::create([
+                    'group_id'  => $demoGroup->id,
+                    'user_id'   => $user->id,
+                    'role'      => 'member',
+                    'joined_at' => now(),
+                ]);
+                $user->update(['active_group_id' => $demoGroup->id]);
+            }
+        }
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return redirect(env('FRONTEND_URL', '/'));
+    }
+
+    // ── Email Verification ──────────────────────────────────────────────────
+
+    /**
+     * GET /api/auth/email/verify/{id}/{hash}
+     * Handles the signed verification link from the email.
+     */
+    public function verifyEmail(Request $request, $id, $hash)
+    {
+        $user = User::findOrFail($id);
+
+        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+            return redirect(env('FRONTEND_URL', '/') . '/profile?verified=invalid');
+        }
+
+        if (!$user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+        }
+
+        return redirect(env('FRONTEND_URL', '/') . '/profile?verified=1');
+    }
+
+    /**
+     * POST /api/auth/email/resend
+     * Resends the email verification notification.
+     */
+    public function resendVerification(Request $request)
+    {
+        if ($request->user()->hasVerifiedEmail()) {
+            return response()->json(['message' => 'Email already verified.']);
+        }
+
+        $request->user()->sendEmailVerificationNotification();
+
+        return response()->json(['message' => 'Verification email sent.']);
     }
 }

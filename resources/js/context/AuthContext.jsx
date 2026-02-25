@@ -3,34 +3,45 @@ import api from '../lib/api';
 
 const AuthContext = createContext(null);
 
+async function initCsrf() {
+    await fetch('/sanctum/csrf-cookie', { credentials: 'include' });
+}
+
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
     const fetchUser = useCallback(async () => {
-        const token = localStorage.getItem('auth_token');
-        if (!token) {
-            setLoading(false);
-            return;
-        }
         try {
             const data = await api.get('/auth/me');
             setUser(data.user);
         } catch {
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('auth_user');
+            setUser(null);
         } finally {
             setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchUser();
+        // Initialise CSRF cookie, then check if already logged in
+        initCsrf().then(fetchUser);
+
+        const onLogout = () => setUser(null);
+        window.addEventListener('auth:logout', onLogout);
+        return () => window.removeEventListener('auth:logout', onLogout);
     }, [fetchUser]);
 
     const login = async (email, password) => {
         const data = await api.post('/auth/login', { email, password });
-        localStorage.setItem('auth_token', data.token);
+        // If MFA is required, the backend returns { mfa_required: true } without logging in
+        if (!data.mfa_required) {
+            setUser(data.user);
+        }
+        return data;
+    };
+
+    const verifyMfa = async (code) => {
+        const data = await api.post('/auth/mfa/verify', { code });
         setUser(data.user);
         return data;
     };
@@ -44,7 +55,6 @@ export function AuthProvider({ children }) {
             referral_code: referralCode || undefined,
             invite_code: inviteCode || undefined,
         });
-        localStorage.setItem('auth_token', data.token);
         setUser(data.user);
         return data;
     };
@@ -53,11 +63,11 @@ export function AuthProvider({ children }) {
         try {
             await api.post('/auth/logout');
         } catch {
-            // ignore
+            // ignore network errors
         }
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_user');
         setUser(null);
+        // Re-initialise CSRF so the next login attempt works
+        await initCsrf();
     };
 
     const updateProfile = async (profileData) => {
@@ -76,6 +86,7 @@ export function AuthProvider({ children }) {
         user,
         loading,
         login,
+        verifyMfa,
         register,
         logout,
         updateProfile,

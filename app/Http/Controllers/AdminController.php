@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\ReferralCode;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -51,6 +52,8 @@ class AdminController extends Controller
             return response()->json(['message' => 'Referral code not found.'], 404);
         }
 
+        AuditLog::record($request->user(), 'referral_code.deleted', $code, ['code' => $code->code]);
+
         $code->delete();
 
         return response()->json(['message' => 'Referral code deleted.']);
@@ -87,7 +90,13 @@ class AdminController extends Controller
             return response()->json(['message' => 'Cannot change your own role.'], 422);
         }
 
+        $previousRole = $user->platform_role;
         $user->update(['platform_role' => $request->platform_role]);
+
+        AuditLog::record($request->user(), 'user.role_changed', $user, [
+            'from' => $previousRole,
+            'to'   => $request->platform_role,
+        ]);
 
         return response()->json(['user' => $user]);
     }

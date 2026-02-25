@@ -6,9 +6,12 @@
 
 ### Prerequisites
 
-- [Laravel Herd](https://herd.laravel.com/) installed on Windows
-- Node.js (18+) and npm
-- The project folder linked in Herd: `C:\Dev\timeline`
+- PHP 8.2+ (via [Laravel Herd](https://herd.laravel.com/) on Windows/macOS, or system PHP on Linux)
+- Node.js 18+ and npm
+- Composer
+
+> **Laravel Herd on Windows**: Herd provides its own PHP binary. If `php` is not on your PATH,
+> replace `php` with `"C:\Users\<you>\.config\herd\bin\php.bat"` in all commands below.
 
 ### First-time setup
 
@@ -23,10 +26,10 @@ npm install
 cp .env.example .env
 
 # Generate app key
-"C:\Users\r\.config\herd\bin\php.bat" artisan key:generate
+php artisan key:generate
 
 # Run migrations and seed demo data
-"C:\Users\r\.config\herd\bin\php.bat" artisan migrate --seed
+php artisan migrate --seed
 ```
 
 Seeding creates:

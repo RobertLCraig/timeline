@@ -2,9 +2,12 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
+import UnverifiedEmailBanner from './components/UnverifiedEmailBanner';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import CreateGroup from './pages/CreateGroup';
 import GroupTimeline from './pages/GroupTimeline';
@@ -14,6 +17,8 @@ import AdminPanel from './pages/AdminPanel';
 import Profile from './pages/Profile';
 import CategoryVisibility from './pages/CategoryVisibility';
 import GroupVisibility from './pages/GroupVisibility';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
 import './index.css';
 
 export default function App() {
@@ -21,11 +26,16 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Navbar />
+        <UnverifiedEmailBanner />
         <Routes>
           {/* Public */}
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
           <Route path="/g/:slug" element={<GroupTimeline />} />
 
           {/* Protected */}

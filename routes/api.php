@@ -18,8 +18,22 @@ use App\Http\Controllers\VisibilityController;
 // ── Public routes (no auth required) ────────────────────────────────────
 
 Route::prefix('auth')->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register');
+    Route::post('/login',    [AuthController::class, 'login'])->middleware('throttle:login');
+
+    // Password reset
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:login');
+    Route::post('/reset-password',  [AuthController::class, 'resetPassword'])->middleware('throttle:login');
+
+    // MFA verification during login (session-scoped challenge, no auth middleware needed)
+    Route::post('/mfa/verify', [AuthController::class, 'mfaVerify'])->middleware('throttle:login');
+
+    // Google OAuth — redirect initiates the flow; callback receives Google's response
+    Route::get('/oauth/google/redirect',  [AuthController::class, 'googleRedirect']);
+    Route::get('/oauth/google/callback',  [AuthController::class, 'googleCallback']);
+
+    // Email verification — signed URL from notification email
+    Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])->name('verification.verify');
 });
 
 Route::get('/categories', [CategoryController::class, 'index']);
@@ -39,8 +53,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
     Route::put('/auth/active-group', [AuthController::class, 'setActiveGroup']);
 
+    // MFA management (requires active session)
+    Route::post('/auth/mfa/enable',  [AuthController::class, 'mfaEnable']);
+    Route::post('/auth/mfa/confirm', [AuthController::class, 'mfaConfirm']);
+    Route::post('/auth/mfa/disable', [AuthController::class, 'mfaDisable']);
+
+    // Email verification resend
+    Route::post('/auth/email/resend', [AuthController::class, 'resendVerification'])->middleware('throttle:6,1');
+
     // Uploads
-    Route::post('/upload', [UploadController::class, 'store']);
+    Route::post('/upload', [UploadController::class, 'store'])->middleware('throttle:upload');
 
     // Groups - user's own
     Route::get('/groups', [GroupController::class, 'index']);

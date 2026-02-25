@@ -46,7 +46,7 @@ c:\Dev\timeline\
 │   ├── App.jsx                        # router setup
 │   ├── main.jsx                       # React entry point (StrictMode)
 │   ├── context/AuthContext.jsx        # auth state + setActiveGroup helper
-│   ├── lib/api.js                     # fetch wrapper (Bearer token, 401 handling)
+│   ├── lib/api.js                     # fetch wrapper (cookie auth, XSRF header, 401 handling)
 │   ├── components/
 │   │   ├── Navbar.jsx
 │   │   └── ProtectedRoute.jsx
@@ -73,9 +73,13 @@ c:\Dev\timeline\
 
 ### Authentication
 
-- **Laravel Sanctum** — token-based (not cookie). Tokens stored in `localStorage` on the client.
-- All authenticated routes use `auth:sanctum` middleware.
-- **Optional auth pattern**: Public routes that *optionally* read the token use `Auth::guard('sanctum')->user()` — NOT `$request->user()` — to avoid a 401 when no token is present.
+- **Laravel Sanctum SPA mode** — session-based, stored in an HttpOnly cookie. No tokens in `localStorage`.
+- **CSRF flow**: On app mount, the React app calls `GET /sanctum/csrf-cookie`. Sanctum sets a readable `XSRF-TOKEN` cookie. All mutating requests (`POST`, `PUT`, `DELETE`) include an `X-XSRF-TOKEN` header (read from that cookie).
+- `credentials: 'include'` is set on every `fetch` in `api.js` so the session cookie is always sent.
+- `statefulApi()` is registered in `bootstrap/app.php`, which adds session, CSRF, and cookie middleware to the API.
+- `SANCTUM_STATEFUL_DOMAINS` in `.env` must list the domain(s) the browser uses to access the app (without protocol). Example: `timeline.test,localhost,localhost:5173`.
+- All authenticated routes use `auth:sanctum` middleware (works identically with session cookies).
+- **Optional auth pattern**: Public routes that *optionally* read the session use `Auth::guard('sanctum')->user()` — NOT `$request->user()` — to avoid a 401 when unauthenticated.
 
 ### Key Models & Tables
 
@@ -156,14 +160,15 @@ Both filters are applied when a group timeline is fetched. Per-user category def
 
 Provides: `user`, `isAuthenticated`, `isLoading`, `login()`, `logout()`, `refreshUser()`, `setActiveGroup()`.
 
-Tokens are stored in `localStorage` under `authToken` and attached automatically by `api.js`.
+On mount, `AuthContext` calls `GET /sanctum/csrf-cookie` (sets the XSRF cookie), then `GET /api/auth/me` (restores session if the HttpOnly cookie is still valid). No localStorage is used.
 
 ### API Client (api.js)
 
 Thin wrapper around `fetch`:
 - Prepends `/api` to all paths
-- Injects `Authorization: Bearer <token>` header
-- On 401, clears token and emits a `auth:logout` event that `AuthContext` listens to
+- Sends `credentials: 'include'` on every request (so the session cookie is always sent)
+- Reads `XSRF-TOKEN` from the browser cookie and injects it as `X-XSRF-TOKEN` on mutations
+- On 401, emits `auth:logout` event — `AuthContext` sets `user` to null in response
 
 ### YearMapSlider (GroupTimeline.jsx)
 
@@ -220,6 +225,45 @@ npm run build
 ```
 
 > **Stale `public/hot` issue**: If `npm run dev` is killed without a clean shutdown, `public/hot` is left behind. Laravel reads this file to decide whether to load assets from the Vite dev server. If the server isn't running, the page goes blank. `npm run build` runs a `prebuild` script that deletes this file automatically.
+
+---
+
+## Planned: Content Moderation (Phase 4)
+
+### Architecture decision — server-side scan
+**Sightengine API** (not NudeNet self-hosted) is chosen for server-side nudity detection:
+- NudeNet requires Python 3.8+, a process manager, and significant CPU/RAM — incompatible with Hostinger shared hosting.
+- Sightengine is a REST API call from PHP: `POST https://api.sightengine.com/1.0/check.json`. Free tier: 500 images/month. Scales cheaply.
+- On VPS/cloud: the `ScanUploadForContent` job can be swapped to call a self-hosted HTTP microservice instead of Sightengine — no other code changes required.
+
+### Admin-configurable NSFW settings
+Super-admins can configure moderation from the Admin Panel:
+
+| Setting | Description |
+|---|---|
+| `nsfw_checks_enabled` | Toggle all content moderation on/off |
+| `nudity_threshold` | Sightengine nudity score (0–1) above which an upload is flagged |
+
+These settings are stored in an `app_settings` table (key/value, super-admin-only writes) and cached.
+
+### Verification queue
+Flagged uploads appear in an **Admin → Flagged Uploads** tab:
+- Each flag shows image preview, filename, score, and timestamp.
+- Actions: **Approve** (image goes live) or **Quarantine** (image removed from event, file moved to `storage/quarantine/`).
+- Quarantined events have `image_url` nullified; the uploader is not notified automatically (no email yet).
+
+### Client-side pre-scan (NSFWJS)
+Before the image reaches the server, the browser runs `@tensorflow-models/nsfwjs` to classify it.
+Uploads are blocked client-side if the score for `Porn`, `Hentai`, or `Sexy` exceeds 0.7.
+This reduces server load and gives immediate feedback to the user.
+
+### Environment variables (add to `.env`)
+```
+SIGHTENGINE_API_USER=
+SIGHTENGINE_API_SECRET=
+SIGHTENGINE_NUDITY_THRESHOLD=0.7
+NSFW_CHECKS_ENABLED=true
+```
 
 ---
 

@@ -1,18 +1,171 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
 
+function MfaSection({ user, refreshUser }) {
+    const [step, setStep] = useState('idle'); // idle | setup | disable
+    const [qrSvg, setQrSvg] = useState('');
+    const [secret, setSecret] = useState('');
+    const [code, setCode] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [msg, setMsg] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const startSetup = async () => {
+        setError(''); setMsg('');
+        setLoading(true);
+        try {
+            const data = await api.post('/auth/mfa/enable');
+            setSecret(data.secret);
+            setQrSvg(atob(data.qr_svg));
+            setStep('setup');
+        } catch (err) {
+            setError(err.data?.message || 'Failed to start 2FA setup');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const confirmSetup = async (e) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+        try {
+            await api.post('/auth/mfa/confirm', { code });
+            await refreshUser();
+            setStep('idle');
+            setMsg('Two-factor authentication enabled.');
+            setCode('');
+        } catch (err) {
+            setError(err.data?.message || 'Invalid code');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const disableMfa = async (e) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+        try {
+            await api.post('/auth/mfa/disable', { password });
+            await refreshUser();
+            setStep('idle');
+            setMsg('Two-factor authentication disabled.');
+            setPassword('');
+        } catch (err) {
+            setError(err.data?.message || 'Failed to disable 2FA');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="card fade-in" style={{ padding: 'var(--space-2xl)', marginBottom: 'var(--space-lg)' }}>
+            <h2 style={{ marginBottom: 'var(--space-sm)' }}>Two-Factor Authentication</h2>
+            <p className="text-muted text-sm" style={{ marginBottom: 'var(--space-md)' }}>
+                Add an extra layer of security using an authenticator app (Google Authenticator, Authy, etc.).
+            </p>
+
+            {msg && <div className="alert alert-success" style={{ marginBottom: 'var(--space-md)' }}>{msg}</div>}
+            {error && <div className="alert alert-error" style={{ marginBottom: 'var(--space-md)' }}>{error}</div>}
+
+            {step === 'idle' && !user?.mfa_enabled && (
+                <button className="btn btn-primary" onClick={startSetup} disabled={loading}>
+                    {loading ? 'Starting...' : 'Enable 2FA'}
+                </button>
+            )}
+
+            {step === 'idle' && user?.mfa_enabled && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
+                    <span style={{ color: '#10b981', fontWeight: 600 }}>2FA is active</span>
+                    <button className="btn btn-ghost btn-sm" style={{ color: '#ef4444' }}
+                        onClick={() => { setStep('disable'); setError(''); }}>
+                        Disable 2FA
+                    </button>
+                </div>
+            )}
+
+            {step === 'setup' && (
+                <div>
+                    <p className="text-sm text-muted" style={{ marginBottom: 'var(--space-md)' }}>
+                        Scan this QR code with your authenticator app, then enter the 6-digit code to confirm.
+                    </p>
+                    <div
+                        style={{ background: '#fff', padding: 12, display: 'inline-block', borderRadius: 8, marginBottom: 'var(--space-md)' }}
+                        dangerouslySetInnerHTML={{ __html: qrSvg }}
+                    />
+                    <p className="text-xs text-muted" style={{ marginBottom: 'var(--space-md)' }}>
+                        Or enter this key manually: <code style={{ fontFamily: 'monospace', letterSpacing: '0.1em' }}>{secret}</code>
+                    </p>
+                    <form onSubmit={confirmSetup} style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                        <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label">Confirmation Code</label>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                className="form-input"
+                                value={code}
+                                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                placeholder="000000"
+                                maxLength={6}
+                                required
+                                style={{ letterSpacing: '0.2em', width: 130 }}
+                                autoFocus
+                            />
+                        </div>
+                        <button type="submit" className="btn btn-primary" disabled={loading || code.length !== 6}>
+                            {loading ? 'Verifying...' : 'Confirm'}
+                        </button>
+                        <button type="button" className="btn btn-ghost" onClick={() => { setStep('idle'); setError(''); }}>
+                            Cancel
+                        </button>
+                    </form>
+                </div>
+            )}
+
+            {step === 'disable' && (
+                <form onSubmit={disableMfa}>
+                    <div className="form-group">
+                        <label className="form-label">Confirm your password to disable 2FA</label>
+                        <input
+                            type="password"
+                            className="form-input"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Your current password"
+                            required
+                            autoFocus
+                        />
+                    </div>
+                    <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+                        <button type="submit" className="btn btn-primary" disabled={loading}>
+                            {loading ? 'Disabling...' : 'Disable 2FA'}
+                        </button>
+                        <button type="button" className="btn btn-ghost" onClick={() => { setStep('idle'); setError(''); }}>
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            )}
+        </div>
+    );
+}
+
 export default function Profile() {
     const { user, updateProfile, setActiveGroup, refreshUser } = useAuth();
+    const [searchParams] = useSearchParams();
 
     // Profile form
     const [form, setForm] = useState({
         name: user?.name || '',
         dob: user?.dob?.split('T')[0] || '',
     });
-    const [msg, setMsg] = useState('');
-    const [error, setError] = useState('');
+    const verifiedParam = searchParams.get('verified');
+    const [msg, setMsg] = useState(verifiedParam === '1' ? 'Email verified successfully!' : '');
+    const [error, setError] = useState(verifiedParam === 'invalid' ? 'Verification link is invalid or has expired.' : '');
     const [loading, setLoading] = useState(false);
 
     // Groups
@@ -243,6 +396,9 @@ export default function Profile() {
                         </button>
                     </form>
                 </div>
+
+                {/* Two-Factor Authentication */}
+                <MfaSection user={user} refreshUser={refreshUser} />
 
                 {/* Visibility Settings */}
                 <div className="card fade-in" style={{ padding: 'var(--space-2xl)' }}>
