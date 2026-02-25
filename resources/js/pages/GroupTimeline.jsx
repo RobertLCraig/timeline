@@ -231,9 +231,11 @@ export default function GroupTimeline() {
     }, [events]);
 
     // Initialise year range once event years are known (or after group navigation reset)
+    // Default window = first 10% of the total span
     useEffect(() => {
         if (yearRange === null && minEventYear !== null) {
-            setYearRange({ start: minEventYear, end: maxEventYear });
+            const spanSize = Math.max(1, Math.round((maxEventYear - minEventYear) * 0.10));
+            setYearRange({ start: minEventYear, end: minEventYear + spanSize });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [minEventYear, maxEventYear]);
