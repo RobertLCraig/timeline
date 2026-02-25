@@ -34,12 +34,12 @@
 
 .timeline-layout {
     display: grid;
-    grid-template-columns: 1fr 210px;
+    grid-template-columns: 210px 1fr 210px;
     gap: var(--space-xl);
     align-items: start;
 }
 
-/* ── Desktop sidebar (right column) ──────────────────── */
+/* ── Desktop sidebars ─────────────────────────────────── */
 
 .sidebar-desktop {
     position: sticky;
@@ -48,6 +48,11 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-md);
+}
+
+/* Right-side year range sidebar only fills to viewport height */
+.sidebar-year-range {
+    overflow: hidden;
 }
 
 .sidebar-section {

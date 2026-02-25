@@ -17,8 +17,12 @@ Or start Vite alone (when Laravel is already being served by Herd):
 npm run dev
 ```
 
-The app is served by Laravel Herd. Vite typically starts on `http://localhost:5173`.
-**Browser**: Microsoft Edge. Use `Ctrl+Shift+R` for a hard refresh after CSS/JS changes.
+The app is served by Laravel Herd at `timeline.test` using **compiled assets** from `public/build/`.
+**After every frontend change**, rebuild so Herd picks them up:
+```
+npm run build
+```
+**Browser**: Microsoft Edge. Use `Ctrl+Shift+R` for a hard refresh after rebuilding.
 
 ## PHP / Artisan Commands
 

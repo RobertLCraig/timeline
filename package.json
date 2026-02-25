@@ -3,6 +3,7 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
+        "prebuild": "node -e \"const fs=require('fs'); try{fs.unlinkSync('public/hot')}catch(e){}\"",
         "build": "vite build"
     },
     "dependencies": {
