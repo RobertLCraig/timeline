@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class UserGroupVisibility extends Model
 {
+    protected $table = 'user_group_visibility';
+
     protected $fillable = ['user_id', 'group_id', 'visibility_tier'];
 
     public function user()

@@ -33,6 +33,9 @@ export default function Navbar() {
                             <Link to="/dashboard" className="navbar-link" onClick={() => setMenuOpen(false)}>
                                 Dashboard
                             </Link>
+                            <Link to="/g/demo" className="navbar-link" onClick={() => setMenuOpen(false)}>
+                                Demo
+                            </Link>
                             {isSuperAdmin && (
                                 <Link to="/admin" className="navbar-link navbar-link-admin" onClick={() => setMenuOpen(false)}>
                                     Admin

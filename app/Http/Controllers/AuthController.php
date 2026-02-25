@@ -68,14 +68,38 @@ class AuthController extends Controller
         // Auto-join group if invite code was provided
         if ($inviteGroup && $invite) {
             GroupMember::create([
-                'group_id' => $inviteGroup->id,
-                'user_id'  => $user->id,
-                'role'     => 'member',
+                'group_id'  => $inviteGroup->id,
+                'user_id'   => $user->id,
+                'role'      => 'member',
+                'joined_at' => now(),
             ]);
 
             $invite->increment('current_uses');
 
             $user->update(['active_group_id' => $inviteGroup->id]);
+        }
+
+        // Auto-join the demo group so new users always have something to explore
+        $demoGroup = Group::where('slug', 'demo')->first();
+        if ($demoGroup) {
+            $alreadyMember = GroupMember::where('group_id', $demoGroup->id)
+                ->where('user_id', $user->id)
+                ->exists();
+
+            if (!$alreadyMember) {
+                GroupMember::create([
+                    'group_id'  => $demoGroup->id,
+                    'user_id'   => $user->id,
+                    'role'      => 'member',
+                    'joined_at' => now(),
+                ]);
+
+                // Set demo as active only if no other group was joined via invite
+                $user->refresh();
+                if (!$user->active_group_id) {
+                    $user->update(['active_group_id' => $demoGroup->id]);
+                }
+            }
         }
 
         $user->load(['groups' => fn($q) => $q->withPivot('role')]);

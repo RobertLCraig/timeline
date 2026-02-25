@@ -30,11 +30,333 @@
     border-left: 3px solid var(--color-primary);
 }
 
-/* ── Filters ──────────────────────────────────────────── */
+/* ── Two-column layout ────────────────────────────────── */
+
+.timeline-layout {
+    display: grid;
+    grid-template-columns: 210px 1fr;
+    gap: var(--space-xl);
+    align-items: start;
+}
+
+/* ── Desktop sidebar ──────────────────────────────────── */
+
+.sidebar-desktop {
+    position: sticky;
+    top: 80px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.sidebar-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--space-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* Year map section has no side padding so the bar goes edge-to-edge */
+.sidebar-map-section {
+    padding: var(--space-sm) 0 var(--space-xs);
+}
+
+.sidebar-section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    padding: var(--space-xs) var(--space-sm);
+    margin-bottom: 2px;
+}
+
+.sidebar-filter-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    width: 100%;
+    padding: 6px var(--space-sm);
+    background: transparent;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    text-align: left;
+    transition: all var(--transition-fast);
+}
+
+.sidebar-filter-btn:hover {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+}
+
+.sidebar-filter-btn.active {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--color-primary-light);
+    font-weight: 600;
+}
+
+.sidebar-count {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    background: var(--bg-surface);
+    border-radius: 999px;
+    padding: 1px 7px;
+    flex-shrink: 0;
+    min-width: 24px;
+    text-align: center;
+}
+
+.sidebar-filter-btn.active .sidebar-count {
+    background: rgba(99, 102, 241, 0.2);
+    color: var(--color-primary-light);
+}
+
+.sidebar-reset-btn {
+    background: none;
+    border: none;
+    font-size: 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    line-height: 1;
+}
+.sidebar-reset-btn:hover { color: var(--color-primary-light); }
+
+/* ── Vertical Minimap Year Slider ─────────────────────── */
+/*
+   Looks like a VSCode minimap panel:
+    • Left:  decade tick lines + year labels
+    • Right: tiny event icons at their year position
+    • A draggable semi-transparent window shows the current selection
+      - top handle  = startYear label + ns-resize cursor
+      - window body = grab cursor (drag to move)
+      - bot handle  = endYear label + ns-resize cursor
+    • Click anywhere outside the window to teleport it there
+*/
+
+.year-map {
+    position: relative;
+    height: 220px;
+    width: 100%;
+    background: var(--bg-surface);
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none; /* prevents iOS/Android scroll while dragging */
+    border-radius: 0 0 var(--border-radius-sm) var(--border-radius-sm);
+}
+
+/* Decade tick marks – absolutely positioned by year% */
+.year-map-tick {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.year-map-tick-label {
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+    padding: 0 4px;
+    white-space: nowrap;
+    min-width: 34px;
+    opacity: 0.8;
+}
+
+.year-map-tick-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+    opacity: 0.5;
+    margin-right: 30px; /* leave room for icons on the right */
+}
+
+/* Event icon dots on the right side */
+.year-map-dots {
+    position: absolute;
+    right: 3px;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.year-map-icon {
+    font-size: 8px;
+    line-height: 1;
+    opacity: 0.9;
+}
+
+.year-map-icon-more {
+    font-size: 7px;
+    color: var(--text-muted);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Selection window */
+.year-map-window {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background: rgba(99, 102, 241, 0.13);
+    border: 1px solid rgba(99, 102, 241, 0.5);
+    box-sizing: border-box;
+    z-index: 2;
+    cursor: grab;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 28px; /* always tall enough for both handles */
+}
+
+.year-map-window.is-dragging {
+    cursor: grabbing;
+    background: rgba(99, 102, 241, 0.2);
+}
+
+/* Top and bottom resize handles */
+.year-map-handle {
+    height: 14px;
+    flex-shrink: 0;
+    background: rgba(99, 102, 241, 0.45);
+    cursor: ns-resize;
+    display: flex;
+    align-items: center;
+    padding: 0 5px;
+    touch-action: none;
+}
+
+.year-map-handle:hover {
+    background: rgba(99, 102, 241, 0.65);
+}
+
+.year-map-handle-top {
+    border-radius: 1px 1px 0 0;
+}
+
+.year-map-handle-bottom {
+    border-radius: 0 0 1px 1px;
+}
+
+/* Year label shown inside each handle */
+.year-map-handle-label {
+    font-size: 9px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255, 255, 255, 0.92);
+    pointer-events: none;
+    line-height: 1;
+}
+
+/* ── Mobile Filters (visible only on < 900px) ─────────── */
+
+.mobile-filters {
+    display: none;
+    flex-direction: column;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.mobile-cat-row {
+    display: flex;
+    gap: var(--space-xs);
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+}
+.mobile-cat-row::-webkit-scrollbar { display: none; }
+
+.mobile-cat-btn {
+    flex-shrink: 0;
+    padding: 5px var(--space-sm);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+}
+.mobile-cat-btn:hover {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+}
+.mobile-cat-btn.active {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--color-primary);
+    color: var(--color-primary-light);
+    font-weight: 600;
+}
+
+.mobile-map-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.mobile-map-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    padding: var(--space-sm) var(--space-sm) var(--space-xs);
+}
+
+/* Mobile year-map is shorter (landscape feel) */
+.mobile-map-section .year-map {
+    height: 140px;
+    border-radius: 0;
+}
+
+/* ── Active filter pills ──────────────────────────────── */
+
+.filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px var(--space-sm);
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid var(--color-primary);
+    border-radius: 999px;
+    font-size: var(--font-size-sm);
+    color: var(--color-primary-light);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+.filter-pill:hover { background: rgba(99, 102, 241, 0.2); }
+
+/* ── Filters bar ──────────────────────────────────────── */
 
 .timeline-filters {
     display: flex;
-    gap: var(--space-md);
+    align-items: center;
+    gap: var(--space-sm);
     margin-bottom: var(--space-xl);
     flex-wrap: wrap;
 }
@@ -83,6 +405,52 @@
     padding: var(--space-lg);
 }
 
+/* ── Card body: text + optional side image ─────────────── */
+
+.timeline-card-body {
+    display: block;
+    margin-bottom: var(--space-md);
+}
+
+.timeline-card-body.has-image {
+    display: grid;
+    gap: var(--space-md);
+    align-items: start;
+}
+
+.timeline-card-body.has-image.image-right {
+    grid-template-columns: 1fr 240px;
+}
+
+.timeline-card-body.has-image.image-left {
+    grid-template-columns: 240px 1fr;
+}
+
+.timeline-card-body.has-image.image-left .timeline-card-image {
+    order: -1;
+}
+
+.timeline-card-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.timeline-card-image {
+    border-radius: var(--border-radius-sm);
+    overflow: hidden;
+    height: 100%;
+    min-height: 160px;
+    max-height: 280px;
+}
+
+.timeline-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
 .timeline-card-header {
     display: flex;
     align-items: center;
@@ -112,19 +480,6 @@
     white-space: pre-line;
 }
 
-.timeline-card-image {
-    border-radius: var(--border-radius-sm);
-    overflow: hidden;
-    margin-bottom: var(--space-md);
-    max-height: 300px;
-}
-
-.timeline-card-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
 .timeline-card-album {
     display: inline-flex;
     align-items: center;
@@ -139,7 +494,6 @@
     margin-bottom: var(--space-md);
     transition: all var(--transition-fast);
 }
-
 .timeline-card-album:hover {
     background: var(--bg-card-hover);
     border-color: var(--color-primary);
@@ -154,7 +508,37 @@
     border-top: 1px solid var(--border-color);
 }
 
-/* ── Responsive ──────────────────────────────────────── */
+/* ── Responsive ───────────────────────────────────────── */
+
+@media (max-width: 900px) {
+    .timeline-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar-desktop {
+        display: none;
+    }
+
+    .mobile-filters {
+        display: flex;
+    }
+}
+
+@media (max-width: 600px) {
+    .timeline-card-body.has-image.image-right,
+    .timeline-card-body.has-image.image-left {
+        grid-template-columns: 1fr;
+    }
+
+    .timeline-card-body.has-image.image-left .timeline-card-image {
+        order: 0;
+    }
+
+    .timeline-card-image {
+        max-height: 220px;
+        min-height: unset;
+    }
+}
 
 @media (max-width: 768px) {
     .timeline {

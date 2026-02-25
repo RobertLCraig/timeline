@@ -3,13 +3,15 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class UploadController extends Controller
 {
     /**
      * POST /api/upload
+     *
+     * Stores images directly in public/uploads/ so they are served as real
+     * static files by the web server (no storage symlink required).
      */
     public function store(Request $request)
     {
@@ -19,12 +21,16 @@ class UploadController extends Controller
 
         $file = $request->file('image');
         $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-        $path = $file->storeAs('uploads', $filename, 'public');
 
-        $url = '/storage/' . $path;
+        $uploadDir = public_path('uploads');
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $file->move($uploadDir, $filename);
 
         return response()->json([
-            'url' => $url,
+            'url'      => '/uploads/' . $filename,
             'filename' => $filename,
         ], 201);
     }

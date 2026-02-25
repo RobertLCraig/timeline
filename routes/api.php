@@ -47,6 +47,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/groups', [GroupController::class, 'store']);
 
     // Join or leave a group
+    Route::post('/groups/join-by-code', [GroupController::class, 'joinByCode']);
     Route::post('/groups/{slug}/join', [GroupController::class, 'join']);
     Route::delete('/groups/{slug}/leave', [GroupController::class, 'leave']);
 

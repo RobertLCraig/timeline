@@ -37,5 +37,7 @@ class DatabaseSeeder extends Seeder
         foreach ($categories as $cat) {
             EventCategory::updateOrCreate(['name' => $cat['name']], $cat);
         }
+
+        $this->call(DemoSeeder::class);
     }
 }

@@ -19,6 +19,12 @@ export default function Profile() {
     const [groups, setGroups] = useState([]);
     const [groupsLoading, setGroupsLoading] = useState(true);
 
+    // Join by invite code
+    const [joinCode, setJoinCode] = useState('');
+    const [joinLoading, setJoinLoading] = useState(false);
+    const [joinMsg, setJoinMsg] = useState('');
+    const [joinError, setJoinError] = useState('');
+
     useEffect(() => {
         api.get('/groups')
             .then(data => setGroups(data.groups || []))
@@ -64,6 +70,26 @@ export default function Profile() {
             setTimeout(() => setMsg(''), 4000);
         } catch (err) {
             setError(err.data?.message || 'Failed to leave group');
+        }
+    };
+
+    const handleJoinByCode = async (e) => {
+        e.preventDefault();
+        setJoinError('');
+        setJoinMsg('');
+        setJoinLoading(true);
+        try {
+            const data = await api.post('/groups/join-by-code', { invite_code: joinCode.trim().toUpperCase() });
+            const newGroup = data.group;
+            setGroups(prev => [...prev, { ...newGroup, pivot: { role: 'member' } }]);
+            setJoinCode('');
+            setJoinMsg(`You joined "${newGroup.name}"!`);
+            await refreshUser();
+            setTimeout(() => setJoinMsg(''), 4000);
+        } catch (err) {
+            setJoinError(err.data?.message || 'Invalid or expired invite code.');
+        } finally {
+            setJoinLoading(false);
         }
     };
 
@@ -191,12 +217,31 @@ export default function Profile() {
                     )}
                 </div>
 
-                {/* Join a Group hint */}
+                {/* Join a Group */}
                 <div className="card fade-in" style={{ padding: 'var(--space-2xl)', marginBottom: 'var(--space-lg)' }}>
                     <h2 style={{ marginBottom: 'var(--space-sm)' }}>Join a Group</h2>
-                    <p className="text-muted text-sm">
-                        To join a group, open the group link shared by a member (e.g. <code>/g/family-smith</code>) and enter your invite code there. Alternatively, you can enter an invite code during registration.
+                    <p className="text-muted text-sm" style={{ marginBottom: 'var(--space-md)' }}>
+                        Enter an invite code shared by a group member to join their timeline.
                     </p>
+
+                    {joinMsg && <div className="alert alert-success" style={{ marginBottom: 'var(--space-md)' }}>{joinMsg}</div>}
+                    {joinError && <div className="alert alert-error" style={{ marginBottom: 'var(--space-md)' }}>{joinError}</div>}
+
+                    <form onSubmit={handleJoinByCode} style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
+                        <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Invite code (e.g. ABCD1234)"
+                            value={joinCode}
+                            onChange={(e) => setJoinCode(e.target.value)}
+                            style={{ flex: 1, minWidth: 200, textTransform: 'uppercase', letterSpacing: '0.1em' }}
+                            maxLength={12}
+                            required
+                        />
+                        <button type="submit" className="btn btn-primary" disabled={joinLoading || !joinCode.trim()}>
+                            {joinLoading ? 'Joining...' : 'Join Group'}
+                        </button>
+                    </form>
                 </div>
 
                 {/* Visibility Settings */}

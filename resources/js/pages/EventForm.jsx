@@ -66,7 +66,7 @@ export default function EventForm() {
                         album_url: ev.album_url || '',
                     });
                     if (ev.image_url) {
-                        setImagePreview(ev.image_url.startsWith('http') ? ev.image_url : `http://localhost:8000${ev.image_url}`);
+                        setImagePreview(ev.image_url);
                     }
                 })
                 .catch(() => navigate(`/g/${slug}`))

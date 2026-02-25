@@ -125,6 +125,60 @@ class GroupController extends Controller
     }
 
     /**
+     * POST /api/groups/join-by-code — join a group using only an invite code (no slug needed)
+     */
+    public function joinByCode(Request $request)
+    {
+        $request->validate([
+            'invite_code' => 'required|string',
+        ]);
+
+        $user = $request->user();
+
+        $invite = GroupInvite::where('code', $request->invite_code)->first();
+
+        if (!$invite || !$invite->isValid()) {
+            return response()->json(['message' => 'Invalid or expired invite code.'], 422);
+        }
+
+        $group = Group::withCount('members')->find($invite->group_id);
+        if (!$group) {
+            return response()->json(['message' => 'Group not found.'], 404);
+        }
+
+        $existing = GroupMember::where('group_id', $group->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if ($existing) {
+            return response()->json(['message' => 'You are already a member of this group.'], 422);
+        }
+
+        GroupMember::create([
+            'group_id'  => $group->id,
+            'user_id'   => $user->id,
+            'role'      => 'member',
+            'joined_at' => now(),
+        ]);
+
+        $invite->increment('current_uses');
+
+        $wasSetActive = false;
+        if (!$user->active_group_id) {
+            $user->update(['active_group_id' => $group->id]);
+            $wasSetActive = true;
+        }
+
+        $group->loadCount('members');
+
+        return response()->json([
+            'message'    => 'Successfully joined the group.',
+            'group'      => $group,
+            'set_active' => $wasSetActive,
+        ]);
+    }
+
+    /**
      * POST /api/groups/{slug}/join — join group via invite code
      */
     public function join(Request $request, string $slug)

@@ -82,6 +82,15 @@ export default function Dashboard() {
                         </p>
                         {joinError && <div className="alert alert-error" style={{ marginTop: 'var(--space-sm)' }}>{joinError}</div>}
                     </div>
+
+                    <div className="card dashboard-action-card">
+                        <div className="dashboard-action-icon">👀</div>
+                        <h2>Explore the Demo</h2>
+                        <p className="text-muted text-sm">Browse a sample family timeline to see how it all works.</p>
+                        <Link to="/g/demo" className="btn btn-secondary">
+                            View Demo
+                        </Link>
+                    </div>
                 </div>
             </div>
         </div>
