@@ -39,14 +39,9 @@
     align-items: start;
 }
 
-/* ── Desktop sidebar ──────────────────────────────────── */
-
-.timeline-main {
-    order: 1;
-}
+/* ── Desktop sidebar (right column) ──────────────────── */
 
 .sidebar-desktop {
-    order: 2;
     position: sticky;
     top: 80px;
     height: calc(100vh - 80px);
@@ -148,6 +143,33 @@
 }
 .sidebar-reset-btn:hover { color: var(--color-primary-light); }
 
+.year-range-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.sidebar-mode-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    font-size: 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 1px 6px;
+    line-height: 1.6;
+    transition: all var(--transition-fast);
+}
+.sidebar-mode-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary-light);
+}
+.sidebar-mode-btn.active {
+    border-color: var(--color-primary);
+    color: var(--color-primary-light);
+    background: rgba(99, 102, 241, 0.1);
+}
+
 /* ── Vertical Minimap Year Slider ─────────────────────── */
 /*
    Looks like a VSCode minimap panel:
@@ -167,8 +189,8 @@
     background: var(--bg-surface);
     overflow: hidden;
     cursor: pointer;
-    user-select: none;
     -webkit-user-select: none;
+    user-select: none;
     touch-action: none; /* prevents iOS/Android scroll while dragging */
     border-radius: 0 0 var(--border-radius-sm) var(--border-radius-sm);
 }
@@ -297,7 +319,8 @@
     gap: var(--space-xs);
     overflow-x: auto;
     padding-bottom: 4px;
-    scrollbar-width: none;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
 }
 .mobile-cat-row::-webkit-scrollbar { display: none; }
 

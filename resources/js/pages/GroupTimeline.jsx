@@ -15,15 +15,19 @@ const SOCIAL_TIER_ICON = {
 
 // ── Vertical minimap-style year range slider ─────────────────────────────────
 //
-// Looks like the VSCode scrollbar/minimap panel:
-//   • Left side: decade tick lines + year labels
-//   • Right side: tiny event icons positioned at their year
-//   • A draggable selection window shows the active year range,
-//     with resize handles at top (startYear) and bottom (endYear)
-//   • Click anywhere on the bar to teleport the window there
+// Primary mode: navigational scrollbar (scroll mode)
+//   • Dragging the window scrolls the timeline to those years
+//   • The window auto-syncs as you scroll the page manually
+//   • A toggle switches to filter mode (hides events outside the range)
+//
+// Direction matches sort order:
+//   • sort='asc'  → oldest year at top, newest at bottom
+//   • sort='desc' → newest year at top, oldest at bottom (reversed)
 
-function YearMapSlider({ minYear, maxYear, events, startYear, endYear, onChange }) {
-    const barRef  = useRef(null);
+function YearMapSlider({ minYear, maxYear, events, startYear, endYear, onChange, sort }) {
+    const barRef   = useRef(null);
+    const reversed = sort === 'desc';
+
     // 'window' | 'top' | 'bottom' | null
     const [dragging, setDragging] = useState(null);
     // Captures values at the moment a drag begins so deltas are stable
@@ -31,9 +35,13 @@ function YearMapSlider({ minYear, maxYear, events, startYear, endYear, onChange 
 
     const totalSpan = Math.max(1, maxYear - minYear);
 
-    // Convert year ↔ percentage of bar height
-    const yp  = (year) => ((year - minYear) / totalSpan) * 100;
-    const py  = (pct)  => Math.round(minYear + (pct / 100) * totalSpan);
+    // Convert year ↔ percentage of bar height (direction-aware)
+    const yp = (year) => reversed
+        ? ((maxYear - year) / totalSpan) * 100   // newest at top
+        : ((year - minYear) / totalSpan) * 100;  // oldest at top
+    const py = (pct) => reversed
+        ? Math.round(maxYear - (pct / 100) * totalSpan)
+        : Math.round(minYear + (pct / 100) * totalSpan);
 
     // Decade tick marks to display
     const decades = useMemo(() => {
@@ -61,29 +69,41 @@ function YearMapSlider({ minYear, maxYear, events, startYear, endYear, onChange 
         if (!dragging) return;
 
         const onMove = (e) => {
-            // Resolve clientY for both mouse and touch
             const bar = barRef.current;
             if (!bar) return;
-            const rect   = bar.getBoundingClientRect();
+            const rect    = bar.getBoundingClientRect();
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            const pct    = Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100));
+            const pct     = Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100));
 
             const { pct: originPct, startYear: os, endYear: oe } = dragOrigin.current;
             const deltaYears = Math.round(((pct - originPct) / 100) * totalSpan);
 
             if (dragging === 'window') {
                 const winSpan = oe - os;
-                let ns = os + deltaYears;
+                const delta   = reversed ? -deltaYears : deltaYears;
+                let ns = os + delta;
                 let ne = ns + winSpan;
                 if (ns < minYear) { ns = minYear; ne = minYear + winSpan; }
                 if (ne > maxYear) { ne = maxYear; ns = maxYear - winSpan; }
                 onChange(ns, ne);
             } else if (dragging === 'top') {
-                const ns = Math.max(minYear, Math.min(os + deltaYears, oe - 1));
-                onChange(ns, oe);
+                if (reversed) {
+                    // top handle = endYear (newest) when reversed
+                    const ne = Math.min(maxYear, Math.max(oe - deltaYears, os + 1));
+                    onChange(os, ne);
+                } else {
+                    const ns = Math.max(minYear, Math.min(os + deltaYears, oe - 1));
+                    onChange(ns, oe);
+                }
             } else if (dragging === 'bottom') {
-                const ne = Math.min(maxYear, Math.max(oe + deltaYears, os + 1));
-                onChange(os, ne);
+                if (reversed) {
+                    // bottom handle = startYear (oldest) when reversed
+                    const ns = Math.max(minYear, Math.min(os - deltaYears, oe - 1));
+                    onChange(ns, oe);
+                } else {
+                    const ne = Math.min(maxYear, Math.max(oe + deltaYears, os + 1));
+                    onChange(os, ne);
+                }
             }
 
             // Prevent page scroll while dragging on touch
@@ -102,7 +122,7 @@ function YearMapSlider({ minYear, maxYear, events, startYear, endYear, onChange 
             document.removeEventListener('touchmove',  onMove);
             document.removeEventListener('touchend',   onUp);
         };
-    }, [dragging, minYear, maxYear, totalSpan, onChange]);
+    }, [dragging, minYear, maxYear, totalSpan, reversed, onChange]);
 
     // Begin dragging one of the three zones
     const beginDrag = (e, type) => {
@@ -118,7 +138,7 @@ function YearMapSlider({ minYear, maxYear, events, startYear, endYear, onChange 
 
     // Click on bar background: teleport window to clicked position then start drag
     const handleBarMouseDown = (e) => {
-        if (e.target.closest('.year-map-window')) return; // let window handle it
+        if (e.target.closest('.year-map-window')) return;
         const bar  = barRef.current;
         const rect = bar.getBoundingClientRect();
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -132,13 +152,15 @@ function YearMapSlider({ minYear, maxYear, events, startYear, endYear, onChange 
         if (ne > maxYear) { ne = maxYear; ns = maxYear - winSpan; }
         onChange(ns, ne);
 
-        // Immediately enter window-drag mode from new position
         dragOrigin.current = { pct, startYear: ns, endYear: ne };
         setDragging('window');
     };
 
-    const startPct  = yp(startYear);
-    const windowPct = Math.max(yp(endYear) - startPct, 4); // min 4% so handles are reachable
+    // Window position and size (direction-aware)
+    const startPct  = reversed ? yp(endYear)   : yp(startYear);
+    const windowPct = reversed
+        ? Math.max(yp(startYear) - yp(endYear), 4)
+        : Math.max(yp(endYear)   - yp(startYear), 4);
 
     return (
         <div
@@ -174,22 +196,22 @@ function YearMapSlider({ minYear, maxYear, events, startYear, endYear, onChange 
                 onMouseDown={e => beginDrag(e, 'window')}
                 onTouchStart={e => beginDrag(e, 'window')}
             >
-                {/* Top resize handle – shows startYear */}
+                {/* Top handle — shows endYear when reversed, startYear when normal */}
                 <div
                     className="year-map-handle year-map-handle-top"
                     onMouseDown={e => beginDrag(e, 'top')}
                     onTouchStart={e => beginDrag(e, 'top')}
                 >
-                    <span className="year-map-handle-label">{startYear}</span>
+                    <span className="year-map-handle-label">{reversed ? endYear : startYear}</span>
                 </div>
 
-                {/* Bottom resize handle – shows endYear */}
+                {/* Bottom handle — shows startYear when reversed, endYear when normal */}
                 <div
                     className="year-map-handle year-map-handle-bottom"
                     onMouseDown={e => beginDrag(e, 'bottom')}
                     onTouchStart={e => beginDrag(e, 'bottom')}
                 >
-                    <span className="year-map-handle-label">{endYear}</span>
+                    <span className="year-map-handle-label">{reversed ? startYear : endYear}</span>
                 </div>
             </div>
         </div>
@@ -210,17 +232,13 @@ export default function GroupTimeline() {
     const [sort, setSort] = useState('desc');
     const [activeCategory, setActiveCategory] = useState(null);
     const [yearRange, setYearRange] = useState(null); // null until events load
+    const [filterMode, setFilterMode] = useState(false); // false = scroll nav, true = filter
     const [joinCode, setJoinCode] = useState('');
     const [joinError, setJoinError] = useState('');
     const [joinLoading, setJoinLoading] = useState(false);
 
-    // Reset filters when navigating to a different group
-    useEffect(() => {
-        setActiveCategory(null);
-        setYearRange(null);
-        loadData();
-        api.get('/categories').then(d => setCategories(d.categories)).catch(() => { });
-    }, [slug]);
+    // Prevents the scroll listener from fighting slider-triggered scrolls
+    const isSliderScrollingRef = useRef(false);
 
     const { minEventYear, maxEventYear } = useMemo(() => {
         const years = events
@@ -229,6 +247,17 @@ export default function GroupTimeline() {
         if (years.length === 0) return { minEventYear: null, maxEventYear: null };
         return { minEventYear: Math.min(...years), maxEventYear: Math.max(...years) };
     }, [events]);
+
+    // Slider shows only when events span more than one calendar year
+    const showSlider = minEventYear !== null && maxEventYear > minEventYear;
+
+    // Reset filters when navigating to a different group
+    useEffect(() => {
+        setActiveCategory(null);
+        setYearRange(null);
+        loadData();
+        api.get('/categories').then(d => setCategories(d.categories)).catch(() => { });
+    }, [slug]);
 
     // Initialise year range once event years are known (or after group navigation reset)
     // Default window = first 10% of the total span
@@ -239,6 +268,70 @@ export default function GroupTimeline() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [minEventYear, maxEventYear]);
+
+    // ── Scroll to year when slider window changes (scroll mode only) ──────────
+    useEffect(() => {
+        if (filterMode || !yearRange) return;
+
+        const items = document.querySelectorAll('.timeline-item[data-year]');
+        if (!items.length) return;
+
+        let target = null;
+        if (sort === 'desc') {
+            // Newest first: find first rendered item with year <= endYear
+            for (const el of items) {
+                if (parseInt(el.dataset.year) <= yearRange.end) { target = el; break; }
+            }
+        } else {
+            // Oldest first: find first rendered item with year >= startYear
+            for (const el of items) {
+                if (parseInt(el.dataset.year) >= yearRange.start) { target = el; break; }
+            }
+        }
+
+        if (target) {
+            isSliderScrollingRef.current = true;
+            const top = target.getBoundingClientRect().top + window.scrollY - 96; // 80px nav + 16px gap
+            window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+            setTimeout(() => { isSliderScrollingRef.current = false; }, 700);
+        }
+    }, [yearRange, filterMode, sort]);
+
+    // ── Auto-sync slider window as page scrolls (scroll mode only) ───────────
+    useEffect(() => {
+        if (filterMode || !showSlider) return;
+
+        const onScroll = () => {
+            if (isSliderScrollingRef.current) return; // ignore our own scroll
+
+            const items = document.querySelectorAll('.timeline-item[data-year]');
+            if (!items.length) return;
+
+            const viewportTop = 96; // below sticky navbar
+            let topYear = null;
+            for (const el of items) {
+                if (el.getBoundingClientRect().bottom > viewportTop) {
+                    topYear = parseInt(el.dataset.year);
+                    break;
+                }
+            }
+
+            if (topYear === null) return;
+            const currentSpan = yearRange ? yearRange.end - yearRange.start : 0;
+            const ns = Math.max(minEventYear, Math.min(topYear, maxEventYear - currentSpan));
+            const ne = Math.min(maxEventYear, ns + currentSpan);
+
+            setYearRange(prev => {
+                if (prev && prev.start === ns && prev.end === ne) return prev;
+                return { start: ns, end: ne };
+            });
+        };
+
+        let timer;
+        const debounced = () => { clearTimeout(timer); timer = setTimeout(onScroll, 100); };
+        window.addEventListener('scroll', debounced, { passive: true });
+        return () => { window.removeEventListener('scroll', debounced); clearTimeout(timer); };
+    }, [filterMode, showSlider, yearRange, minEventYear, maxEventYear]);
 
     const loadData = async () => {
         setLoading(true);
@@ -293,10 +386,8 @@ export default function GroupTimeline() {
             .filter(cat => cat.count > 0);
     }, [events, categories]);
 
-    // Slider shows only when events span more than one calendar year
-    const showSlider = minEventYear !== null && maxEventYear > minEventYear;
-
-    const isYearFiltered = showSlider && yearRange !== null &&
+    // In filter mode only: hide events outside the selected range
+    const isYearFiltered = filterMode && showSlider && yearRange !== null &&
         (yearRange.start > minEventYear || yearRange.end < maxEventYear);
 
     const resetYearRange = () => {
@@ -336,7 +427,27 @@ export default function GroupTimeline() {
         startYear: yearRange.start,
         endYear:   yearRange.end,
         onChange:  (s, e) => setYearRange({ start: s, end: e }),
+        sort,
     } : null;
+
+    // Shared Year Range section header (used in both desktop and mobile)
+    const yearRangeHeader = (
+        <div className="sidebar-section-title">
+            Year Range
+            <div className="year-range-controls">
+                <button
+                    className={`sidebar-mode-btn ${filterMode ? 'active' : ''}`}
+                    onClick={() => setFilterMode(m => !m)}
+                    title={filterMode ? 'Switch to scroll mode' : 'Switch to filter mode'}
+                >
+                    {filterMode ? '⊠ Filter' : '↕ Scroll'}
+                </button>
+                {isYearFiltered && (
+                    <button className="sidebar-reset-btn" onClick={resetYearRange}>Reset</button>
+                )}
+            </div>
+        </div>
+    );
 
     return (
         <div className="page">
@@ -387,46 +498,8 @@ export default function GroupTimeline() {
                     </div>
                 )}
 
-                {/* Two-column layout: sidebar + main */}
+                {/* Two-column layout: main content left, sidebar right */}
                 <div className="timeline-layout fade-in">
-
-                    {/* ── Desktop sticky sidebar ── */}
-                    <aside className="sidebar-desktop">
-                        {/* Category filter */}
-                        <div className="sidebar-section">
-                            <div className="sidebar-section-title">Category</div>
-                            <button
-                                className={`sidebar-filter-btn ${!activeCategory ? 'active' : ''}`}
-                                onClick={() => setActiveCategory(null)}
-                            >
-                                <span>All events</span>
-                                <span className="sidebar-count">{events.length}</span>
-                            </button>
-                            {categoryCounts.map(cat => (
-                                <button
-                                    key={cat.id}
-                                    className={`sidebar-filter-btn ${activeCategory === cat.id ? 'active' : ''}`}
-                                    onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
-                                >
-                                    <span>{cat.icon} {cat.name}</span>
-                                    <span className="sidebar-count">{cat.count}</span>
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Vertical minimap year slider – desktop */}
-                        {sliderProps && (
-                            <div className="sidebar-section sidebar-map-section">
-                                <div className="sidebar-section-title">
-                                    Year Range
-                                    {isYearFiltered && (
-                                        <button className="sidebar-reset-btn" onClick={resetYearRange}>Reset</button>
-                                    )}
-                                </div>
-                                <YearMapSlider {...sliderProps} />
-                            </div>
-                        )}
-                    </aside>
 
                     {/* ── Main content ── */}
                     <div className="timeline-main">
@@ -451,14 +524,23 @@ export default function GroupTimeline() {
                                 </div>
                             )}
 
-                            {/* Vertical minimap year slider – mobile (full width) */}
+                            {/* Vertical minimap year slider – mobile */}
                             {sliderProps && (
                                 <div className="mobile-map-section">
                                     <div className="mobile-map-title">
                                         Year Range
-                                        {isYearFiltered && (
-                                            <button className="sidebar-reset-btn" onClick={resetYearRange}>Reset</button>
-                                        )}
+                                        <div className="year-range-controls">
+                                            <button
+                                                className={`sidebar-mode-btn ${filterMode ? 'active' : ''}`}
+                                                onClick={() => setFilterMode(m => !m)}
+                                                title={filterMode ? 'Switch to scroll mode' : 'Switch to filter mode'}
+                                            >
+                                                {filterMode ? '⊠ Filter' : '↕ Scroll'}
+                                            </button>
+                                            {isYearFiltered && (
+                                                <button className="sidebar-reset-btn" onClick={resetYearRange}>Reset</button>
+                                            )}
+                                        </div>
                                     </div>
                                     <YearMapSlider {...sliderProps} />
                                 </div>
@@ -509,7 +591,12 @@ export default function GroupTimeline() {
                         ) : (
                             <div className="timeline">
                                 {displayedEvents.map((event, i) => (
-                                    <div key={event.id} className="timeline-item" style={{ animationDelay: `${i * 0.05}s` }}>
+                                    <div
+                                        key={event.id}
+                                        className="timeline-item"
+                                        data-year={event.event_date?.slice(0, 4)}
+                                        style={{ animationDelay: `${i * 0.05}s` }}
+                                    >
                                         <div className="timeline-dot" style={{ background: event.category?.color || 'var(--color-primary)' }}>
                                             <span>{event.category?.icon || '📌'}</span>
                                         </div>
@@ -564,6 +651,40 @@ export default function GroupTimeline() {
                             </div>
                         )}
                     </div>
+
+                    {/* ── Desktop sticky sidebar (right) ── */}
+                    <aside className="sidebar-desktop">
+                        {/* Category filter */}
+                        <div className="sidebar-section">
+                            <div className="sidebar-section-title">Category</div>
+                            <button
+                                className={`sidebar-filter-btn ${!activeCategory ? 'active' : ''}`}
+                                onClick={() => setActiveCategory(null)}
+                            >
+                                <span>All events</span>
+                                <span className="sidebar-count">{events.length}</span>
+                            </button>
+                            {categoryCounts.map(cat => (
+                                <button
+                                    key={cat.id}
+                                    className={`sidebar-filter-btn ${activeCategory === cat.id ? 'active' : ''}`}
+                                    onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+                                >
+                                    <span>{cat.icon} {cat.name}</span>
+                                    <span className="sidebar-count">{cat.count}</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Vertical minimap year slider – desktop */}
+                        {sliderProps && (
+                            <div className="sidebar-section sidebar-map-section">
+                                {yearRangeHeader}
+                                <YearMapSlider {...sliderProps} />
+                            </div>
+                        )}
+                    </aside>
+
                 </div>
             </div>
         </div>
