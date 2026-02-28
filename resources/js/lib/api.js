@@ -67,8 +67,10 @@ class ApiClient {
         return this.request(endpoint, { method: 'PUT', body: JSON.stringify(body) });
     }
 
-    delete(endpoint) {
-        return this.request(endpoint, { method: 'DELETE' });
+    delete(endpoint, body) {
+        const opts = { method: 'DELETE' };
+        if (body !== undefined) opts.body = JSON.stringify(body);
+        return this.request(endpoint, opts);
     }
 }
 

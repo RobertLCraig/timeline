@@ -98,6 +98,11 @@ export default function Landing() {
                     <p className="text-muted text-sm">
                         © {new Date().getFullYear()} Family Timeline. Made with ❤️ for families everywhere.
                     </p>
+                    <p className="text-muted text-sm" style={{ marginTop: 'var(--space-sm)' }}>
+                        <Link to="/terms" style={{ color: 'var(--text-muted)', textDecoration: 'underline' }}>Terms of Service</Link>
+                        {' · '}
+                        <Link to="/privacy" style={{ color: 'var(--text-muted)', textDecoration: 'underline' }}>Privacy Policy</Link>
+                    </p>
                 </div>
             </footer>
         </div>

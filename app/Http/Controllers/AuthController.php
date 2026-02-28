@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Event;
 use App\Models\Group;
 use App\Models\GroupInvite;
 use App\Models\GroupMember;
@@ -540,5 +541,97 @@ class AuthController extends Controller
         $request->user()->sendEmailVerificationNotification();
 
         return response()->json(['message' => 'Verification email sent.']);
+    }
+
+    // ── GDPR ────────────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/me/export
+     * Returns a JSON export of all personal data held for the authenticated user.
+     * The response has Content-Disposition: attachment so the browser saves the file.
+     */
+    public function export(Request $request)
+    {
+        $user = $request->user()->load([
+            'groups' => fn($q) => $q->withPivot('role', 'joined_at'),
+            'events',
+        ]);
+
+        $payload = [
+            'exported_at' => now()->toIso8601String(),
+            'profile' => [
+                'id'                => $user->id,
+                'name'              => $user->name,
+                'email'             => $user->email,
+                'dob'               => $user->dob?->toDateString(),
+                'platform_role'     => $user->platform_role,
+                'email_verified_at' => $user->email_verified_at?->toIso8601String(),
+                'mfa_enabled'       => $user->mfa_enabled,
+                'created_at'        => $user->created_at->toIso8601String(),
+            ],
+            'groups' => $user->groups->map(fn($g) => [
+                'id'        => $g->id,
+                'name'      => $g->name,
+                'slug'      => $g->slug,
+                'role'      => $g->pivot->role,
+                'joined_at' => $g->pivot->joined_at,
+            ])->values(),
+            'events' => $user->events->map(fn($e) => [
+                'id'                => $e->id,
+                'group_id'          => $e->group_id,
+                'title'             => $e->title,
+                'description'       => $e->description,
+                'event_date'        => $e->event_date?->toDateString(),
+                'category_id'       => $e->category_id,
+                'visibility'        => $e->visibility,
+                'social_visibility' => $e->social_visibility,
+                'created_at'        => $e->created_at->toIso8601String(),
+            ])->values(),
+        ];
+
+        return response()->json($payload)
+            ->header('Content-Disposition', 'attachment; filename="my-data-export.json"')
+            ->header('Content-Type', 'application/json');
+    }
+
+    /**
+     * DELETE /api/me
+     * Permanently deletes the authenticated user's account.
+     * - Nullifies created_by on their events (preserves group history)
+     * - Removes all group memberships
+     * - Ends the session
+     * Requires password confirmation (skipped for Google-only accounts).
+     */
+    public function deleteAccount(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        $user = $request->user();
+
+        // Password-only accounts must confirm; Google-only accounts (no password) skip this
+        if ($user->password && !Hash::check($request->password, $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => ['Incorrect password.'],
+            ]);
+        }
+
+        // Preserve group events but remove identity link
+        Event::where('created_by', $user->id)->update(['created_by' => null]);
+
+        // Remove all group memberships
+        \Illuminate\Support\Facades\DB::table('group_members')
+            ->where('user_id', $user->id)
+            ->delete();
+
+        // End session before deleting the record
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        $user->delete();
+
+        return response()->json(['message' => 'Your account has been permanently deleted.']);
     }
 }

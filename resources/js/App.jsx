@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import UnverifiedEmailBanner from './components/UnverifiedEmailBanner';
+import CookieBanner from './components/CookieBanner';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -27,6 +28,7 @@ export default function App() {
       <AuthProvider>
         <Navbar />
         <UnverifiedEmailBanner />
+        <CookieBanner />
         <Routes>
           {/* Public */}
           <Route path="/" element={<Landing />} />

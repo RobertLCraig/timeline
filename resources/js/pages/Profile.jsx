@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
 
@@ -150,6 +150,144 @@ function MfaSection({ user, refreshUser }) {
                     </div>
                 </form>
             )}
+        </div>
+    );
+}
+
+function GdprSection() {
+    const { logout } = useAuth();
+    const navigate = useNavigate();
+    const [deletePassword, setDeletePassword] = useState('');
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [deleteError, setDeleteError] = useState('');
+    const [exportLoading, setExportLoading] = useState(false);
+
+    const handleExport = async () => {
+        setExportLoading(true);
+        try {
+            // Fetch raw response so we can save the JSON file
+            const res = await fetch('/api/me/export', { credentials: 'include' });
+            if (!res.ok) throw new Error('Export failed');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'my-data-export.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            // Silent — user will see nothing happened and can retry
+        } finally {
+            setExportLoading(false);
+        }
+    };
+
+    const handleDelete = async (e) => {
+        e.preventDefault();
+        setDeleteError('');
+        setDeleteLoading(true);
+        try {
+            await api.delete('/me', { password: deletePassword });
+            await logout();
+            navigate('/', { replace: true });
+        } catch (err) {
+            setDeleteError(err.data?.message || 'Failed to delete account. Please check your password and try again.');
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
+    return (
+        <div className="card fade-in" style={{ padding: 'var(--space-2xl)', marginBottom: 'var(--space-lg)' }}>
+            <h2 style={{ marginBottom: 'var(--space-sm)' }}>Data & Privacy</h2>
+            <p className="text-muted text-sm" style={{ marginBottom: 'var(--space-lg)' }}>
+                Under GDPR you have the right to access and erase your personal data.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+                {/* Download */}
+                <div style={{
+                    padding: 'var(--space-md) var(--space-lg)',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: 'var(--border-radius)',
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 'var(--space-md)',
+                    flexWrap: 'wrap',
+                }}>
+                    <div>
+                        <div style={{ fontWeight: 600 }}>Download My Data</div>
+                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
+                            Export a JSON file containing your profile, groups, and events.
+                        </div>
+                    </div>
+                    <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={handleExport}
+                        disabled={exportLoading}
+                        style={{ flexShrink: 0 }}
+                    >
+                        {exportLoading ? 'Preparing...' : 'Download'}
+                    </button>
+                </div>
+
+                {/* Delete account */}
+                <div style={{
+                    padding: 'var(--space-md) var(--space-lg)',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: 'var(--border-radius)',
+                    border: '1px solid #ef444433',
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-md)', flexWrap: 'wrap', marginBottom: showDeleteConfirm ? 'var(--space-md)' : 0 }}>
+                        <div>
+                            <div style={{ fontWeight: 600, color: '#ef4444' }}>Delete My Account</div>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
+                                Permanently removes your account. Your events remain in the group timeline anonymously.
+                            </div>
+                        </div>
+                        {!showDeleteConfirm && (
+                            <button
+                                className="btn btn-ghost btn-sm"
+                                style={{ color: '#ef4444', flexShrink: 0 }}
+                                onClick={() => setShowDeleteConfirm(true)}
+                            >
+                                Delete Account
+                            </button>
+                        )}
+                    </div>
+
+                    {showDeleteConfirm && (
+                        <form onSubmit={handleDelete}>
+                            <p style={{ fontSize: 'var(--font-size-sm)', marginBottom: 'var(--space-sm)', color: 'var(--text-secondary)' }}>
+                                This action is <strong>permanent and cannot be undone</strong>. Enter your password to confirm.
+                            </p>
+                            {deleteError && <div className="alert alert-error" style={{ marginBottom: 'var(--space-sm)' }}>{deleteError}</div>}
+                            <div className="form-group" style={{ marginBottom: 'var(--space-sm)' }}>
+                                <input
+                                    type="password"
+                                    className="form-input"
+                                    placeholder="Your current password"
+                                    value={deletePassword}
+                                    onChange={(e) => setDeletePassword(e.target.value)}
+                                    required
+                                    autoFocus
+                                />
+                            </div>
+                            <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+                                <button type="submit" className="btn btn-sm" style={{ background: '#ef4444', color: '#fff' }} disabled={deleteLoading}>
+                                    {deleteLoading ? 'Deleting...' : 'Yes, Delete My Account'}
+                                </button>
+                                <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setShowDeleteConfirm(false); setDeleteError(''); setDeletePassword(''); }}>
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
@@ -399,6 +537,9 @@ export default function Profile() {
 
                 {/* Two-Factor Authentication */}
                 <MfaSection user={user} refreshUser={refreshUser} />
+
+                {/* Data & Privacy */}
+                <GdprSection />
 
                 {/* Visibility Settings */}
                 <div className="card fade-in" style={{ padding: 'var(--space-2xl)' }}>

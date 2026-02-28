@@ -61,6 +61,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Email verification resend
     Route::post('/auth/email/resend', [AuthController::class, 'resendVerification'])->middleware('throttle:6,1');
 
+    // GDPR: data export and account deletion
+    Route::get('/me/export', [AuthController::class, 'export']);
+    Route::delete('/me', [AuthController::class, 'deleteAccount']);
+
     // Uploads
     Route::post('/upload', [UploadController::class, 'store'])->middleware('throttle:upload');
 
