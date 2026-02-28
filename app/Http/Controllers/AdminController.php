@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppSetting;
 use App\Models\AuditLog;
 use App\Models\ReferralCode;
+use App\Models\UploadFlag;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -99,5 +101,103 @@ class AdminController extends Controller
         ]);
 
         return response()->json(['user' => $user]);
+    }
+
+    // ── NSFW / Content Moderation ────────────────────────────────────────────
+
+    /**
+     * GET /api/admin/settings
+     * Returns all admin-configurable platform settings.
+     */
+    public function getSettings()
+    {
+        return response()->json([
+            'settings' => [
+                'nsfw_checks_enabled' => AppSetting::get('nsfw_checks_enabled', '0'),
+                'nudity_threshold'    => AppSetting::get('nudity_threshold', '0.6'),
+            ],
+        ]);
+    }
+
+    /**
+     * PUT /api/admin/settings
+     * Updates one or more platform settings. Only known keys are accepted.
+     */
+    public function updateSettings(Request $request)
+    {
+        $request->validate([
+            'nsfw_checks_enabled' => 'sometimes|in:0,1',
+            'nudity_threshold'    => 'sometimes|numeric|min:0|max:1',
+        ]);
+
+        $allowed = ['nsfw_checks_enabled', 'nudity_threshold'];
+        foreach ($allowed as $key) {
+            if ($request->has($key)) {
+                AppSetting::set($key, (string) $request->input($key));
+            }
+        }
+
+        AuditLog::record($request->user(), 'admin.settings_updated', null, $request->only($allowed));
+
+        return response()->json([
+            'settings' => [
+                'nsfw_checks_enabled' => AppSetting::get('nsfw_checks_enabled'),
+                'nudity_threshold'    => AppSetting::get('nudity_threshold'),
+            ],
+        ]);
+    }
+
+    /**
+     * GET /api/admin/upload-flags
+     * Paginated list of flagged uploads. Filterable by status via ?status=pending|approved|quarantined
+     */
+    public function uploadFlags(Request $request)
+    {
+        $query = UploadFlag::with(['uploader:id,name,email', 'reviewer:id,name'])
+            ->orderBy('created_at', 'desc');
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $flags = $query->paginate(20);
+
+        return response()->json([
+            'flags' => $flags->items(),
+            'meta'  => [
+                'total'        => $flags->total(),
+                'current_page' => $flags->currentPage(),
+                'last_page'    => $flags->lastPage(),
+            ],
+        ]);
+    }
+
+    /**
+     * PUT /api/admin/upload-flags/{id}
+     * Approve or quarantine a flagged upload.
+     */
+    public function reviewFlag(Request $request, int $id)
+    {
+        $request->validate([
+            'status' => 'required|in:approved,quarantined',
+        ]);
+
+        $flag = UploadFlag::find($id);
+        if (!$flag) {
+            return response()->json(['message' => 'Flag not found.'], 404);
+        }
+
+        $flag->update([
+            'status'      => $request->status,
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+        ]);
+
+        AuditLog::record($request->user(), 'upload_flag.' . $request->status, $flag, [
+            'flag_id' => $flag->id,
+            'url'     => $flag->url,
+        ]);
+
+        return response()->json(['flag' => $flag->fresh(['uploader:id,name,email', 'reviewer:id,name'])]);
     }
 }

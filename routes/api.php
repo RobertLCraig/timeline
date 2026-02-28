@@ -113,5 +113,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/referral-codes/{id}', [AdminController::class, 'deleteReferralCode']);
         Route::get('/users', [AdminController::class, 'users']);
         Route::put('/users/{id}/role', [AdminController::class, 'updateUserRole']);
+
+        // NSFW settings
+        Route::get('/settings', [AdminController::class, 'getSettings']);
+        Route::put('/settings', [AdminController::class, 'updateSettings']);
+
+        // Content moderation queue
+        Route::get('/upload-flags', [AdminController::class, 'uploadFlags']);
+        Route::put('/upload-flags/{id}', [AdminController::class, 'reviewFlag']);
     });
 });
