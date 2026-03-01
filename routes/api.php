@@ -28,9 +28,7 @@ Route::prefix('auth')->group(function () {
     // MFA verification during login (session-scoped challenge, no auth middleware needed)
     Route::post('/mfa/verify', [AuthController::class, 'mfaVerify'])->middleware('throttle:login');
 
-    // Google OAuth — redirect initiates the flow; callback receives Google's response
-    Route::get('/oauth/google/redirect',  [AuthController::class, 'googleRedirect']);
-    Route::get('/oauth/google/callback',  [AuthController::class, 'googleCallback']);
+    // Google OAuth routes live in routes/web.php (need web session middleware — see note there)
 
     // Email verification — signed URL from notification email
     Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])->name('verification.verify');
