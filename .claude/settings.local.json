@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(\"C:\\\\Users\\\\r\\\\.config\\\\herd\\\\bin\\\\php.bat\" artisan migrate --force)",
+      "Bash(git commit:*)",
+      "Bash(git add app/Http/Controllers/AdminController.php app/Http/Controllers/UploadController.php app/Models/AppSetting.php app/Models/UploadFlag.php config/services.php database/migrations/2026_02_25_000700_create_app_settings_table.php database/migrations/2026_02_25_000800_create_upload_flags_table.php resources/js/pages/AdminPanel.jsx routes/api.php)"
     ]
   }
 }

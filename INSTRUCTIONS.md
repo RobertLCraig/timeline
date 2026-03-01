@@ -136,10 +136,16 @@ Default super-admin login: `admin@family.com` / `admin123`
 
 ## Production Deployment
 
+> **Hostinger / shared hosting note:** The server has no Node.js, so Vite cannot run
+> there. `public/build/` is committed to git — always run `npm run build` locally and
+> commit the updated `public/build/` before pushing to the server.
+
 ### 1. Build frontend assets
 
 ```bash
 npm run build
+git add public/build/
+git commit -m "build: update compiled frontend assets"
 ```
 
 ### 2. Configure environment
