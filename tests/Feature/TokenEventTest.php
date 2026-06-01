@@ -144,4 +144,54 @@ class TokenEventTest extends TestCase
 
         $res->assertStatus(403);
     }
+
+    public function test_events_write_token_can_update_event(): void
+    {
+        [$user, $group] = $this->makeUserWithGroup();
+        $category = EventCategory::create(['name' => 'Travel']);
+        $event = $user->events()->create([
+            'group_id' => $group->id,
+            'title' => 'Original',
+            'event_date' => now()->toDateString(),
+            'visibility' => 'members',
+            'social_visibility' => 'friends',
+            'source' => 'web',
+        ]);
+
+        $res = $this->actingAsToken($user, ['events:write'])->putJson("/api/groups/{$group->slug}/events/{$event->id}", [
+            'title' => 'Renamed',
+            'category' => 'travel', // by name
+        ]);
+
+        $res->assertStatus(200);
+        $this->assertDatabaseHas('events', [
+            'id' => $event->id,
+            'title' => 'Renamed',
+            'category_id' => $category->id,
+            'source' => 'web', // unchanged on edit
+        ]);
+    }
+
+    public function test_non_owner_cannot_update_event(): void
+    {
+        [$owner, $group] = $this->makeUserWithGroup();
+        $event = $owner->events()->create([
+            'group_id' => $group->id,
+            'title' => 'Owned',
+            'event_date' => now()->toDateString(),
+            'visibility' => 'members',
+            'social_visibility' => 'friends',
+            'source' => 'web',
+        ]);
+        // A different member who is not the creator nor an admin.
+        $member = User::factory()->create();
+        GroupMember::create(['group_id' => $group->id, 'user_id' => $member->id, 'role' => 'member']);
+
+        $res = $this->actingAsToken($member, ['events:write'])->putJson("/api/groups/{$group->slug}/events/{$event->id}", [
+            'title' => 'Hijacked',
+        ]);
+
+        $res->assertStatus(403);
+        $this->assertDatabaseHas('events', ['id' => $event->id, 'title' => 'Owned']);
+    }
 }

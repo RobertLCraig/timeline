@@ -5,6 +5,7 @@ namespace App\Mcp\Servers;
 use App\Mcp\Tools\ListCategoriesTool;
 use App\Mcp\Tools\ListGroupsTool;
 use App\Mcp\Tools\PostTimelineEventTool;
+use App\Mcp\Tools\UpdateTimelineEventTool;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
@@ -24,11 +25,14 @@ Recommended flow:
 2. Call `list_categories` to pick a valid category name (optional).
 3. Call `post_timeline_event` with the group slug, a title, and an event_date
    (YYYY-MM-DD). Other fields are optional and sensibly defaulted.
+4. To edit an event you created, call `update_timeline_event` with its event_id
+   and only the fields you want to change.
 MARKDOWN)]
 class TimelineServer extends Server
 {
     protected array $tools = [
         PostTimelineEventTool::class,
+        UpdateTimelineEventTool::class,
         ListGroupsTool::class,
         ListCategoriesTool::class,
     ];

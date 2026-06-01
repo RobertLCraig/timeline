@@ -100,4 +100,42 @@ class EventCreator
 
         return $event;
     }
+
+    /**
+     * Apply a partial update to an existing event from already-validated data.
+     * Only keys present in $data are changed; social_visibility is re-resolved
+     * when the category or override changes, falling back to the current value.
+     *
+     * @param  array  $data  any subset of: title, description, event_date,
+     *                       category_id, visibility, social_visibility,
+     *                       visibility_is_override, image_url, album_url
+     */
+    public static function applyUpdate(Event $event, User $user, array $data): Event
+    {
+        $isOverride = array_key_exists('visibility_is_override', $data)
+            ? (bool) $data['visibility_is_override']
+            : $event->visibility_is_override;
+
+        $categoryId = array_key_exists('category_id', $data) ? $data['category_id'] : $event->category_id;
+
+        $socialVisibility = self::resolveSocialVisibility(
+            $user,
+            $categoryId,
+            $data['social_visibility'] ?? null,
+            $isOverride
+        ) ?? $event->social_visibility;
+
+        $updatable = array_intersect_key($data, array_flip([
+            'title', 'description', 'event_date', 'category_id', 'visibility', 'image_url', 'album_url',
+        ]));
+
+        $event->update(array_merge($updatable, [
+            'social_visibility' => $socialVisibility,
+            'visibility_is_override' => $isOverride,
+        ]));
+
+        $event->load(['category', 'creator:id,name,avatar_url']);
+
+        return $event;
+    }
 }

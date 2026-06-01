@@ -191,7 +191,7 @@ class EventController extends Controller
             $request->merge(['category_id' => EventCreator::resolveCategoryId($request->input('category'))]);
         }
 
-        $request->validate([
+        $validated = $request->validate([
             'title' => 'sometimes|string|max:200',
             'description' => 'sometimes|nullable|string|max:5000',
             'event_date' => 'sometimes|date|before_or_equal:'.now()->addYear()->toDateString(),
@@ -203,32 +203,7 @@ class EventController extends Controller
             'album_url' => 'sometimes|nullable|url|max:1000',
         ]);
 
-        // Resolve social_visibility if category changed or override toggled
-        $isOverride = $request->has('visibility_is_override')
-            ? (bool) $request->visibility_is_override
-            : $event->visibility_is_override;
-
-        $categoryId = $request->has('category_id') ? $request->category_id : $event->category_id;
-
-        $socialVisibility = EventCreator::resolveSocialVisibility(
-            $user,
-            $categoryId,
-            $request->social_visibility,
-            $isOverride
-        ) ?? $event->social_visibility;
-
-        $event->update(array_merge(
-            $request->only([
-                'title', 'description', 'event_date', 'category_id',
-                'visibility', 'image_url', 'album_url',
-            ]),
-            [
-                'social_visibility' => $socialVisibility,
-                'visibility_is_override' => $isOverride,
-            ]
-        ));
-
-        $event->load(['category', 'creator:id,name,avatar_url']);
+        $event = EventCreator::applyUpdate($event, $user, $validated);
 
         return response()->json(['event' => $event]);
     }
