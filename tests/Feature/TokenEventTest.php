@@ -194,4 +194,42 @@ class TokenEventTest extends TestCase
         $res->assertStatus(403);
         $this->assertDatabaseHas('events', ['id' => $event->id, 'title' => 'Owned']);
     }
+
+    public function test_creator_can_delete_event(): void
+    {
+        [$user, $group] = $this->makeUserWithGroup();
+        $event = $user->events()->create([
+            'group_id' => $group->id,
+            'title' => 'Disposable',
+            'event_date' => now()->toDateString(),
+            'visibility' => 'members',
+            'social_visibility' => 'friends',
+            'source' => 'web',
+        ]);
+
+        $res = $this->actingAsToken($user, ['events:write'])->deleteJson("/api/groups/{$group->slug}/events/{$event->id}");
+
+        $res->assertStatus(200);
+        $this->assertDatabaseMissing('events', ['id' => $event->id]);
+    }
+
+    public function test_non_owner_cannot_delete_event(): void
+    {
+        [$owner, $group] = $this->makeUserWithGroup();
+        $event = $owner->events()->create([
+            'group_id' => $group->id,
+            'title' => 'Protected',
+            'event_date' => now()->toDateString(),
+            'visibility' => 'members',
+            'social_visibility' => 'friends',
+            'source' => 'web',
+        ]);
+        $member = User::factory()->create();
+        GroupMember::create(['group_id' => $group->id, 'user_id' => $member->id, 'role' => 'member']);
+
+        $res = $this->actingAsToken($member, ['events:write'])->deleteJson("/api/groups/{$group->slug}/events/{$event->id}");
+
+        $res->assertStatus(403);
+        $this->assertDatabaseHas('events', ['id' => $event->id]);
+    }
 }

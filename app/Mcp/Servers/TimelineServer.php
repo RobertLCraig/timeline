@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Servers;
 
+use App\Mcp\Tools\DeleteTimelineEventTool;
 use App\Mcp\Tools\ListCategoriesTool;
 use App\Mcp\Tools\ListGroupsTool;
 use App\Mcp\Tools\PostTimelineEventTool;
@@ -33,6 +34,7 @@ class TimelineServer extends Server
     protected array $tools = [
         PostTimelineEventTool::class,
         UpdateTimelineEventTool::class,
+        DeleteTimelineEventTool::class,
         ListGroupsTool::class,
         ListCategoriesTool::class,
     ];
