@@ -24,7 +24,7 @@ class AppServiceProvider extends ServiceProvider
         // routes are cached (routes/ai.php — where oauthRoutes() also registers
         // it — isn't loaded at runtime under route:cache).
         Passport::tokensCan([
-            'mcp:use' => 'Post events to your Family Timeline',
+            'mcp:use' => 'View, post, and edit events on your Family Timeline',
         ]);
 
         // Consent screen shown when an OAuth client (e.g. Claude) requests access.
