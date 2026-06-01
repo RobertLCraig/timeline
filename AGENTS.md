@@ -112,33 +112,37 @@ curl -X POST https://timeline.test/api/groups/<group-slug>/events \
 
 ## 3. MCP server
 
-MCP-capable agents can use the hosted Streamable-HTTP server instead of raw HTTP.
-It exposes three tools, authenticated with the same Bearer token:
+MCP-capable agents (Claude Desktop, Claude Code) use the hosted Streamable-HTTP
+server instead of raw HTTP. **It authenticates via OAuth2, not the Bearer token**
+— the agent registers itself, you log in and consent in the browser, and the
+agent receives its own scoped token. It exposes three tools:
 
-- `post_timeline_event` — create an event (needs `events:write`).
-- `list_groups` — the user's groups + slugs (needs `groups:read`).
-- `list_categories` — valid category names (needs `categories:read`).
+- `post_timeline_event` — create an event.
+- `list_groups` — the user's groups + slugs.
+- `list_categories` — valid category names.
 
-### Connect (Claude Code / Claude Desktop)
+> **Tip:** sign in to the Family Timeline in your default browser *first*. Then
+> the "Connect" step jumps straight to the consent screen instead of asking you
+> to log in mid-flow.
+
+### Connect — Claude Desktop
+
+Settings → Connectors → **Add custom connector**:
+- **Name:** `Family Timeline`
+- **Remote MCP server URL:** `https://<your-timeline-domain>/mcp`
+- Leave the OAuth Client ID / Secret **blank** — the server supports dynamic
+  client registration, so Claude registers itself automatically.
+
+Click **Add**, then **Connect**; approve the consent screen.
+
+### Connect — Claude Code
 
 ```bash
-claude mcp add --transport http timeline https://<your-timeline-domain>/mcp \
-  --header "Authorization: Bearer <token>"
+claude mcp add --transport http timeline https://<your-timeline-domain>/mcp
 ```
 
-### Connect (generic MCP client config)
-
-```json
-{
-  "mcpServers": {
-    "timeline": {
-      "transport": "http",
-      "url": "https://<your-timeline-domain>/mcp",
-      "headers": { "Authorization": "Bearer <token>" }
-    }
-  }
-}
-```
+No `--header` needed — Claude Code discovers the OAuth server from the 401
+challenge and opens a browser to authorize.
 
 Then ask the agent to e.g. *"post a Travel event titled 'Trip to the coast' on
 2026-05-30 to my family group."* It will call `list_groups`, optionally
@@ -148,6 +152,9 @@ Then ask the agent to e.g. *"post a Travel event titled 'Trip to the coast' on
 
 ## Notes for implementers
 
+- **Two auth paths, by design:** `/mcp` uses **OAuth2 (Laravel Passport,
+  `mcp:use` scope)** for interactive agents; the REST API uses **Sanctum
+  personal access tokens** with granular abilities for scripts/curl.
 - Every event records a `source` of `web`, `api`, or `mcp` so human and agent
   posts can be distinguished.
 - The REST endpoint and the MCP `post_timeline_event` tool create events through

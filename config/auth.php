@@ -40,6 +40,13 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // Passport guard — validates OAuth2 access tokens for the MCP server.
+        // Coexists with Sanctum's 'sanctum' guard (registered by the package).
+        'api' => [
+            'driver' => 'passport',
+            'provider' => 'users',
+        ],
     ],
 
     /*

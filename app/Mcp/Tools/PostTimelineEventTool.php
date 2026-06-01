@@ -17,14 +17,10 @@ class PostTimelineEventTool extends Tool
 
     public function handle(Request $request): Response
     {
-        $user = $request->user('sanctum');
+        $user = $request->user('api');
 
         if (! $user) {
-            return Response::error('Authentication required. Provide a personal access token as a Bearer token.');
-        }
-
-        if (! $user->tokenCan('events:write')) {
-            return Response::error('This token lacks the "events:write" ability.');
+            return Response::error('Authentication required.');
         }
 
         $validated = $request->validate([

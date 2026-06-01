@@ -28,6 +28,13 @@ $COMPOSER_BIN install --no-dev --optimize-autoloader --no-interaction
 echo "==> Running database migrations"
 $PHP_BIN artisan migrate --force
 
+# Generate Passport OAuth keys only if they don't exist yet. Never regenerate —
+# that would invalidate every issued MCP access token.
+if [ ! -f storage/oauth-private.key ]; then
+    echo "==> Generating Passport keys (first run)"
+    $PHP_BIN artisan passport:keys --no-interaction
+fi
+
 echo "==> Rebuilding framework caches"
 $PHP_BIN artisan config:cache
 $PHP_BIN artisan route:cache

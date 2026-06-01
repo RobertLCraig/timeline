@@ -22,6 +22,13 @@ Route::prefix('api/auth/oauth/google')->group(function () {
     Route::get('/callback', [AuthController::class, 'googleCallback']);
 });
 
+// Named 'login' route. Passport's OAuth authorize endpoint redirects here when
+// the browser isn't authenticated; returning the SPA shell lets React Router
+// render the login page (and stops "Route [login] not defined" errors).
+Route::get('/login', function () {
+    return view('app');
+})->name('login');
+
 // Catch-all route for the SPA (must be last)
 Route::get('/{any}', function () {
     return view('app');

@@ -14,14 +14,10 @@ class ListGroupsTool extends Tool
 
     public function handle(Request $request): Response
     {
-        $user = $request->user('sanctum');
+        $user = $request->user('api');
 
         if (! $user) {
             return Response::error('Authentication required.');
-        }
-
-        if (! $user->tokenCan('groups:read')) {
-            return Response::error('This token lacks the "groups:read" ability.');
         }
 
         $groups = $user->groups()->get()->map(fn ($g) => [

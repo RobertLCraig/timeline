@@ -15,14 +15,10 @@ class ListCategoriesTool extends Tool
 
     public function handle(Request $request): Response
     {
-        $user = $request->user('sanctum');
+        $user = $request->user('api');
 
         if (! $user) {
             return Response::error('Authentication required.');
-        }
-
-        if (! $user->tokenCan('categories:read')) {
-            return Response::error('This token lacks the "categories:read" ability.');
         }
 
         $categories = EventCategory::orderBy('name')->get()->map(fn ($c) => [
