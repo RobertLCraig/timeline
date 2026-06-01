@@ -158,15 +158,32 @@ APP_URL=https://yourdomain.com
 DB_CONNECTION=sqlite      # or mysql for production
 ```
 
-### 3. Optimise
+### 3. Optimise (server-side)
+
+After the code is on the server, run the bundled deploy script from the app
+directory — it pulls, installs production dependencies, migrates, and rebuilds
+caches:
+
+```bash
+bash deploy.sh
+# or, if php/composer are version-specific on the host:
+PHP_BIN=/usr/bin/php8.2 COMPOSER_BIN="php /usr/bin/composer" bash deploy.sh
+```
+
+Equivalent manual steps:
 
 ```bash
 composer install --optimize-autoloader --no-dev
+php artisan migrate --force
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 php artisan storage:link
 ```
+
+> **MCP note:** the `/mcp` route is registered from `routes/ai.php`. After
+> `route:cache`, confirm it still responds (a `POST /mcp` with no token should
+> return **401**, not 404).
 
 ### 4. Upload (Hostinger / shared hosting)
 

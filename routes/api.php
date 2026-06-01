@@ -1,13 +1,14 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\GroupController;
-use App\Http\Controllers\EventController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\EventController;
+use App\Http\Controllers\GroupController;
+use App\Http\Controllers\TokenController;
 use App\Http\Controllers\UploadController;
 use App\Http\Controllers\VisibilityController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,11 +20,11 @@ use App\Http\Controllers\VisibilityController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register');
-    Route::post('/login',    [AuthController::class, 'login'])->middleware('throttle:login');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
     // Password reset
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:login');
-    Route::post('/reset-password',  [AuthController::class, 'resetPassword'])->middleware('throttle:login');
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:login');
 
     // MFA verification during login (session-scoped challenge, no auth middleware needed)
     Route::post('/mfa/verify', [AuthController::class, 'mfaVerify'])->middleware('throttle:login');
@@ -51,8 +52,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
     Route::put('/auth/active-group', [AuthController::class, 'setActiveGroup']);
 
+    // Personal access tokens (for AI agents / scripts). Session-auth only —
+    // a token cannot mint or manage other tokens (no 'tokens:manage' ability).
+    Route::middleware('ability:tokens:manage')->group(function () {
+        Route::get('/auth/tokens', [TokenController::class, 'index']);
+        Route::post('/auth/tokens', [TokenController::class, 'store'])->middleware('throttle:6,1');
+        Route::delete('/auth/tokens/{id}', [TokenController::class, 'destroy']);
+    });
+
     // MFA management (requires active session)
-    Route::post('/auth/mfa/enable',  [AuthController::class, 'mfaEnable']);
+    Route::post('/auth/mfa/enable', [AuthController::class, 'mfaEnable']);
     Route::post('/auth/mfa/confirm', [AuthController::class, 'mfaConfirm']);
     Route::post('/auth/mfa/disable', [AuthController::class, 'mfaDisable']);
 
@@ -67,7 +76,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/upload', [UploadController::class, 'store'])->middleware('throttle:upload');
 
     // Groups - user's own
-    Route::get('/groups', [GroupController::class, 'index']);
+    Route::get('/groups', [GroupController::class, 'index'])->middleware('ability:groups:read');
     Route::post('/groups', [GroupController::class, 'store']);
 
     // Join or leave a group
@@ -84,9 +93,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // Group member routes (requires group membership)
     Route::middleware('group.role:owner,admin,member')->group(function () {
         Route::get('/groups/{slug}/members', [GroupController::class, 'members']);
-        Route::post('/groups/{slug}/events', [EventController::class, 'store']);
-        Route::put('/groups/{slug}/events/{id}', [EventController::class, 'update']);
-        Route::delete('/groups/{slug}/events/{id}', [EventController::class, 'destroy']);
+
+        // Event writes require the 'events:write' token ability (no-op for SPA
+        // sessions) and are throttled per token to curb runaway agents.
+        Route::middleware(['ability:events:write', 'throttle:events-write'])->group(function () {
+            Route::post('/groups/{slug}/events', [EventController::class, 'store']);
+            Route::put('/groups/{slug}/events/{id}', [EventController::class, 'update']);
+            Route::delete('/groups/{slug}/events/{id}', [EventController::class, 'destroy']);
+        });
     });
 
     // Group admin routes (requires admin or owner)

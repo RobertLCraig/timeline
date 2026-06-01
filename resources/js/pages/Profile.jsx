@@ -292,6 +292,202 @@ function GdprSection() {
     );
 }
 
+function TokensSection() {
+    const [tokens, setTokens] = useState([]);
+    const [grantable, setGrantable] = useState({});
+    const [nudgeDays, setNudgeDays] = useState(180);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    // Create form
+    const [showForm, setShowForm] = useState(false);
+    const [name, setName] = useState('');
+    const [abilities, setAbilities] = useState([]);
+    const [creating, setCreating] = useState(false);
+    const [plaintext, setPlaintext] = useState(''); // shown once after creation
+    const [copied, setCopied] = useState(false);
+
+    const load = async () => {
+        try {
+            const data = await api.get('/auth/tokens');
+            setTokens(data.tokens || []);
+            setGrantable(data.grantable || {});
+            setNudgeDays(data.rotation_nudge_days || 180);
+            setAbilities(data.default_abilities || []);
+        } catch (err) {
+            setError(err.data?.message || 'Failed to load tokens');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { load(); }, []);
+
+    const toggleAbility = (key) => {
+        setAbilities(prev => prev.includes(key) ? prev.filter(a => a !== key) : [...prev, key]);
+    };
+
+    const handleCreate = async (e) => {
+        e.preventDefault();
+        setError('');
+        setCreating(true);
+        try {
+            const data = await api.post('/auth/tokens', { name: name.trim(), abilities });
+            setPlaintext(data.token);
+            setCopied(false);
+            setName('');
+            setShowForm(false);
+            await load();
+        } catch (err) {
+            setError(err.data?.message || 'Failed to create token');
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    const handleRevoke = async (token) => {
+        if (!confirm(`Revoke "${token.name}"? Any agent using it will immediately lose access.`)) return;
+        setError('');
+        try {
+            await api.delete(`/auth/tokens/${token.id}`);
+            setTokens(tokens.filter(t => t.id !== token.id));
+        } catch (err) {
+            setError(err.data?.message || 'Failed to revoke token');
+        }
+    };
+
+    const copyToken = async () => {
+        try {
+            await navigator.clipboard.writeText(plaintext);
+            setCopied(true);
+        } catch {
+            // Clipboard may be blocked; user can select manually
+        }
+    };
+
+    const fmtDate = (v) => v ? new Date(v).toLocaleDateString() : null;
+
+    return (
+        <div className="card fade-in" style={{ padding: 'var(--space-2xl)', marginBottom: 'var(--space-lg)' }}>
+            <div className="flex items-center justify-between flex-wrap gap-md" style={{ marginBottom: 'var(--space-sm)' }}>
+                <h2 style={{ margin: 0 }}>API Tokens</h2>
+                {!showForm && !plaintext && (
+                    <button className="btn btn-primary btn-sm" onClick={() => { setShowForm(true); setError(''); }}>
+                        + Create Token
+                    </button>
+                )}
+            </div>
+            <p className="text-muted text-sm" style={{ marginBottom: 'var(--space-md)' }}>
+                Tokens let AI agents (Claude, Ollama, scripts) post events to your groups on your behalf.
+                Treat them like passwords. We suggest rotating them every {nudgeDays} days; they expire automatically after 2 years.
+            </p>
+
+            {error && <div className="alert alert-error" style={{ marginBottom: 'var(--space-md)' }}>{error}</div>}
+
+            {/* One-time plaintext reveal */}
+            {plaintext && (
+                <div className="alert alert-success" style={{ marginBottom: 'var(--space-md)' }}>
+                    <div style={{ fontWeight: 600, marginBottom: 'var(--space-xs)' }}>
+                        Copy this token now — it will not be shown again.
+                    </div>
+                    <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <code style={{
+                            fontFamily: 'monospace', fontSize: 'var(--font-size-sm)', wordBreak: 'break-all',
+                            background: 'var(--bg-secondary)', padding: '6px 10px', borderRadius: 6, flex: 1, minWidth: 220,
+                        }}>{plaintext}</code>
+                        <button className="btn btn-secondary btn-sm" onClick={copyToken} style={{ flexShrink: 0 }}>
+                            {copied ? 'Copied ✓' : 'Copy'}
+                        </button>
+                    </div>
+                    <button className="btn btn-ghost btn-sm" style={{ marginTop: 'var(--space-sm)' }} onClick={() => setPlaintext('')}>
+                        Done
+                    </button>
+                </div>
+            )}
+
+            {/* Create form */}
+            {showForm && (
+                <form onSubmit={handleCreate} style={{ marginBottom: 'var(--space-lg)', padding: 'var(--space-lg)', background: 'var(--bg-secondary)', borderRadius: 'var(--border-radius)', border: '1px solid var(--border-color)' }}>
+                    <div className="form-group">
+                        <label className="form-label">Token name</label>
+                        <input
+                            type="text"
+                            className="form-input"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="e.g. Claude desktop, Ollama bot"
+                            maxLength={80}
+                            required
+                            autoFocus
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Abilities</label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
+                            {Object.entries(grantable).map(([key, label]) => (
+                                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', fontSize: 'var(--font-size-sm)', cursor: 'pointer' }}>
+                                    <input type="checkbox" checked={abilities.includes(key)} onChange={() => toggleAbility(key)} />
+                                    <code style={{ fontFamily: 'monospace' }}>{key}</code>
+                                    <span className="text-muted">— {label}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+                        <button type="submit" className="btn btn-primary" disabled={creating || !name.trim() || abilities.length === 0}>
+                            {creating ? 'Creating...' : 'Create Token'}
+                        </button>
+                        <button type="button" className="btn btn-ghost" onClick={() => { setShowForm(false); setError(''); }}>
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            )}
+
+            {/* Token list */}
+            {loading ? (
+                <div className="text-muted text-sm">Loading tokens...</div>
+            ) : tokens.length === 0 ? (
+                <p className="text-muted text-sm">You haven't created any tokens yet.</p>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+                    {tokens.map(token => (
+                        <div key={token.id} style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            flexWrap: 'wrap', gap: 'var(--space-sm)',
+                            padding: 'var(--space-md) var(--space-lg)',
+                            background: 'var(--bg-secondary)', borderRadius: 'var(--border-radius)',
+                            border: '1px solid var(--border-color)',
+                        }}>
+                            <div style={{ minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
+                                    <span style={{ fontWeight: 600 }}>{token.name}</span>
+                                    {token.stale && (
+                                        <span className="badge" style={{ background: '#f59e0b22', color: '#b45309', fontSize: '0.65rem' }}>
+                                            ⚠ Consider rotating
+                                        </span>
+                                    )}
+                                </div>
+                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+                                    {(token.abilities || []).map(a => <code key={a} style={{ fontFamily: 'monospace', marginRight: 6 }}>{a}</code>)}
+                                </div>
+                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+                                    Created {fmtDate(token.created_at)}
+                                    {' · '}Last used {fmtDate(token.last_used_at) || 'never'}
+                                    {token.expires_at && <> · Expires {fmtDate(token.expires_at)}</>}
+                                </div>
+                            </div>
+                            <button className="btn btn-ghost btn-sm" style={{ color: '#ef4444', flexShrink: 0 }} onClick={() => handleRevoke(token)}>
+                                Revoke
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function Profile() {
     const { user, updateProfile, setActiveGroup, refreshUser } = useAuth();
     const [searchParams] = useSearchParams();
@@ -537,6 +733,9 @@ export default function Profile() {
 
                 {/* Two-Factor Authentication */}
                 <MfaSection user={user} refreshUser={refreshUser} />
+
+                {/* API Tokens (for AI agents) */}
+                <TokensSection />
 
                 {/* Data & Privacy */}
                 <GdprSection />

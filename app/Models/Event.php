@@ -45,6 +45,7 @@ class Event extends Model
         'visibility_is_override',
         'image_url',
         'album_url',
+        'source',
     ];
 
     protected function casts(): array

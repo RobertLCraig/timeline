@@ -4,11 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Event;
 use App\Models\Group;
-use App\Models\GroupMember;
-use App\Models\CategoryVisibilityDefault;
 use App\Models\UserGroupVisibility;
+use App\Support\EventCreator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class EventController extends Controller
 {
@@ -22,7 +22,7 @@ class EventController extends Controller
     public function index(Request $request, string $slug)
     {
         $group = Group::where('slug', $slug)->first();
-        if (!$group) {
+        if (! $group) {
             return response()->json(['message' => 'Group not found.'], 404);
         }
 
@@ -42,7 +42,7 @@ class EventController extends Controller
             ->with(['category', 'creator:id,name,avatar_url']);
 
         // ── Step 1: Old membership visibility filter ────────────────────────
-        if (!$user) {
+        if (! $user) {
             $query->where('visibility', 'public');
         } elseif ($isAdminOrOwner) {
             // Admin/owner sees everything (no old-visibility filter)
@@ -59,7 +59,7 @@ class EventController extends Controller
         }
 
         // ── Step 2: Social visibility tier filter (members only) ────────────
-        if ($isMember && !$isAdminOrOwner) {
+        if ($isMember && ! $isAdminOrOwner) {
             // Get the user's social tier for this group (default: 'friends')
             $groupTierRecord = UserGroupVisibility::where('user_id', $user->id)
                 ->where('group_id', $group->id)
@@ -107,7 +107,7 @@ class EventController extends Controller
     public function show(Request $request, string $slug, int $id)
     {
         $group = Group::where('slug', $slug)->first();
-        if (!$group) {
+        if (! $group) {
             return response()->json(['message' => 'Group not found.'], 404);
         }
 
@@ -116,13 +116,13 @@ class EventController extends Controller
             ->with(['category', 'creator:id,name,avatar_url'])
             ->first();
 
-        if (!$event) {
+        if (! $event) {
             return response()->json(['message' => 'Event not found.'], 404);
         }
 
         $user = Auth::guard('sanctum')->user();
 
-        if (!$event->isVisibleTo($user)) {
+        if (! $event->isVisibleTo($user)) {
             return response()->json(['message' => 'Access denied.'], 403);
         }
 
@@ -136,43 +136,36 @@ class EventController extends Controller
     {
         $group = $request->attributes->get('group');
 
-        $request->validate([
-            'title'                  => 'required|string|max:200',
-            'description'            => 'nullable|string|max:5000',
-            'event_date'             => 'required|date|before_or_equal:' . now()->addYear()->toDateString(),
-            'category_id'            => 'nullable|integer|exists:event_categories,id',
-            'visibility'             => 'sometimes|in:public,members,private',
-            'social_visibility'      => 'sometimes|nullable|in:family,close_friends,friends,acquaintances,public,private',
+        // Agent convenience: accept a category by name when no id is given.
+        if (! $request->filled('category_id') && $request->filled('category')) {
+            $request->merge(['category_id' => EventCreator::resolveCategoryId($request->input('category'))]);
+        }
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:200',
+            'description' => 'nullable|string|max:5000',
+            'event_date' => 'required|date|before_or_equal:'.now()->addYear()->toDateString(),
+            'category_id' => 'nullable|integer|exists:event_categories,id',
+            'visibility' => 'sometimes|in:public,members,private',
+            'social_visibility' => 'sometimes|nullable|in:family,close_friends,friends,acquaintances,public,private',
             'visibility_is_override' => 'sometimes|boolean',
-            'image_url'              => 'nullable|string|max:500',
-            'album_url'              => 'nullable|url|max:1000',
+            'image_url' => 'nullable|string|max:500',
+            'album_url' => 'nullable|url|max:1000',
         ]);
 
-        // Resolve social_visibility from category default if not overridden
-        $socialVisibility = $this->resolveSocialVisibility(
-            $request->user(),
-            $request->category_id,
-            $request->social_visibility,
-            (bool) $request->input('visibility_is_override', false)
-        );
-
-        $event = Event::create([
-            'group_id'               => $group->id,
-            'title'                  => $request->title,
-            'description'            => $request->description,
-            'event_date'             => $request->event_date,
-            'category_id'            => $request->category_id,
-            'created_by'             => $request->user()->id,
-            'visibility'             => $request->input('visibility', 'members'),
-            'social_visibility'      => $socialVisibility,
-            'visibility_is_override' => $request->input('visibility_is_override', false),
-            'image_url'              => $request->image_url,
-            'album_url'              => $request->album_url,
-        ]);
-
-        $event->load(['category', 'creator:id,name,avatar_url']);
+        $event = EventCreator::create($request->user(), $group, $validated, $this->requestSource($request));
 
         return response()->json(['event' => $event], 201);
+    }
+
+    /**
+     * Determine how this write arrived: a real personal access token => 'api',
+     * an SPA session (TransientToken) => 'web'. MCP writes go through the
+     * EventCreator service directly with source 'mcp'.
+     */
+    private function requestSource(Request $request): string
+    {
+        return $request->user()?->currentAccessToken() instanceof PersonalAccessToken ? 'api' : 'web';
     }
 
     /**
@@ -184,25 +177,30 @@ class EventController extends Controller
 
         $event = Event::where('id', $id)->where('group_id', $group->id)->first();
 
-        if (!$event) {
+        if (! $event) {
             return response()->json(['message' => 'Event not found.'], 404);
         }
 
         $user = $request->user();
-        if ($event->created_by !== $user->id && !$group->isAdminOrOwner($user->id) && !$user->isSuperAdmin()) {
+        if ($event->created_by !== $user->id && ! $group->isAdminOrOwner($user->id) && ! $user->isSuperAdmin()) {
             return response()->json(['message' => 'You do not have permission to edit this event.'], 403);
         }
 
+        // Agent convenience: accept a category by name when no id is given.
+        if (! $request->filled('category_id') && $request->filled('category')) {
+            $request->merge(['category_id' => EventCreator::resolveCategoryId($request->input('category'))]);
+        }
+
         $request->validate([
-            'title'                  => 'sometimes|string|max:200',
-            'description'            => 'sometimes|nullable|string|max:5000',
-            'event_date'             => 'sometimes|date|before_or_equal:' . now()->addYear()->toDateString(),
-            'category_id'            => 'sometimes|nullable|integer|exists:event_categories,id',
-            'visibility'             => 'sometimes|in:public,members,private',
-            'social_visibility'      => 'sometimes|nullable|in:family,close_friends,friends,acquaintances,public,private',
+            'title' => 'sometimes|string|max:200',
+            'description' => 'sometimes|nullable|string|max:5000',
+            'event_date' => 'sometimes|date|before_or_equal:'.now()->addYear()->toDateString(),
+            'category_id' => 'sometimes|nullable|integer|exists:event_categories,id',
+            'visibility' => 'sometimes|in:public,members,private',
+            'social_visibility' => 'sometimes|nullable|in:family,close_friends,friends,acquaintances,public,private',
             'visibility_is_override' => 'sometimes|boolean',
-            'image_url'              => 'sometimes|nullable|string|max:500',
-            'album_url'              => 'sometimes|nullable|url|max:1000',
+            'image_url' => 'sometimes|nullable|string|max:500',
+            'album_url' => 'sometimes|nullable|url|max:1000',
         ]);
 
         // Resolve social_visibility if category changed or override toggled
@@ -212,7 +210,7 @@ class EventController extends Controller
 
         $categoryId = $request->has('category_id') ? $request->category_id : $event->category_id;
 
-        $socialVisibility = $this->resolveSocialVisibility(
+        $socialVisibility = EventCreator::resolveSocialVisibility(
             $user,
             $categoryId,
             $request->social_visibility,
@@ -225,7 +223,7 @@ class EventController extends Controller
                 'visibility', 'image_url', 'album_url',
             ]),
             [
-                'social_visibility'      => $socialVisibility,
+                'social_visibility' => $socialVisibility,
                 'visibility_is_override' => $isOverride,
             ]
         ));
@@ -244,42 +242,17 @@ class EventController extends Controller
 
         $event = Event::where('id', $id)->where('group_id', $group->id)->first();
 
-        if (!$event) {
+        if (! $event) {
             return response()->json(['message' => 'Event not found.'], 404);
         }
 
         $user = $request->user();
-        if ($event->created_by !== $user->id && !$group->isAdminOrOwner($user->id) && !$user->isSuperAdmin()) {
+        if ($event->created_by !== $user->id && ! $group->isAdminOrOwner($user->id) && ! $user->isSuperAdmin()) {
             return response()->json(['message' => 'You do not have permission to delete this event.'], 403);
         }
 
         $event->delete();
 
         return response()->json(['message' => 'Event deleted successfully.']);
-    }
-
-    /**
-     * Resolve the social_visibility value.
-     * If override is true and a value is provided, use that.
-     * Otherwise, look up the user's category default (falls back to 'friends').
-     */
-    private function resolveSocialVisibility($user, ?int $categoryId, ?string $providedValue, bool $isOverride): string
-    {
-        if ($isOverride && $providedValue) {
-            return $providedValue;
-        }
-
-        if ($categoryId) {
-            $default = CategoryVisibilityDefault::where('user_id', $user->id)
-                ->where('category_id', $categoryId)
-                ->first();
-
-            if ($default) {
-                return $default->visibility_tier;
-            }
-        }
-
-        // Final fallback
-        return $providedValue ?? 'friends';
     }
 }

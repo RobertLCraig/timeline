@@ -1,0 +1,155 @@
+# Posting to Family Timeline from AI Agents
+
+This guide is for AI agents and scripts (Claude, Ollama, OpenClaw, custom bots)
+that need to post events to a Family Timeline group. There are two ways in, both
+authenticated by the **same personal access token**:
+
+1. **REST API** — any HTTP client. Universal, no dependencies.
+2. **MCP server** — a native `post_timeline_event` tool for MCP-capable agents.
+
+---
+
+## 1. Get a token
+
+A human account holder creates the token in the app:
+
+> **Profile → API Tokens → Create Token**
+
+- Give it a recognisable name (e.g. "Claude desktop").
+- Grant only the abilities the agent needs. Defaults: `events:write`,
+  `groups:read`, `categories:read`.
+- **The plaintext token is shown once.** Copy it immediately; it can't be
+  retrieved later, only revoked and recreated.
+
+**Abilities**
+
+| Ability           | Allows                                   |
+|-------------------|------------------------------------------|
+| `events:write`    | Create and edit timeline events          |
+| `events:read`     | Read timeline events                     |
+| `groups:read`     | List the user's groups (to find a slug)  |
+| `categories:read` | List event categories                    |
+
+**Lifecycle:** rotate tokens roughly every **180 days** (the UI shows a "consider
+rotating" badge past that). Tokens hard-expire after **2 years**. Revoke a token
+from the same screen to cut off an agent instantly.
+
+The token acts as the user — it can only post to groups that user belongs to,
+and all existing visibility/permission rules apply.
+
+---
+
+## 2. REST API
+
+Base URL: `https://<your-timeline-domain>/api` (local dev: `https://timeline.test/api`).
+
+Send the token as a Bearer header. **No CSRF/cookie handling needed** — token
+requests are stateless.
+
+```
+Authorization: Bearer <token>
+Accept: application/json
+Content-Type: application/json
+```
+
+### Find a group slug
+
+```bash
+curl https://timeline.test/api/groups \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json"
+```
+
+### List categories (optional)
+
+```bash
+curl https://timeline.test/api/categories \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json"
+```
+
+### Post an event
+
+```bash
+curl -X POST https://timeline.test/api/groups/<group-slug>/events \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "title": "Trip to the coast",
+        "event_date": "2026-05-30",
+        "description": "A long weekend away.",
+        "category": "Travel"
+      }'
+```
+
+**Event fields**
+
+| Field               | Required | Notes                                                                 |
+|---------------------|----------|-----------------------------------------------------------------------|
+| `title`             | yes      | Max 200 chars.                                                         |
+| `event_date`        | yes      | `YYYY-MM-DD`. Must be on or before one year from today.               |
+| `description`       | no       | Max 5000 chars.                                                       |
+| `category`          | no       | Category **name** (case-insensitive), e.g. `Travel`. Convenience for agents. |
+| `category_id`       | no       | Numeric id alternative to `category`.                                |
+| `visibility`        | no       | `public` \| `members` (default) \| `private`.                         |
+| `social_visibility` | no       | `family` \| `close_friends` \| `friends` \| `acquaintances` \| `public` \| `private`. Defaults from the category if omitted. |
+| `image_url`         | no       | Image URL or upload path (max 500).                                  |
+| `album_url`         | no       | URL to a full album (max 1000).                                      |
+
+**Success:** `201 Created` with `{ "event": { ... } }`.
+
+**Errors** follow Laravel's shape:
+```json
+{ "message": "The given data was invalid.", "errors": { "event_date": ["..."] } }
+```
+- `401` — missing/invalid token.
+- `403` — token lacks `events:write`, or the user isn't a member of the group.
+- `422` — validation failed (e.g. an unknown `category` returns the valid list).
+- `429` — rate limit (max **60 event writes per minute per token**).
+
+---
+
+## 3. MCP server
+
+MCP-capable agents can use the hosted Streamable-HTTP server instead of raw HTTP.
+It exposes three tools, authenticated with the same Bearer token:
+
+- `post_timeline_event` — create an event (needs `events:write`).
+- `list_groups` — the user's groups + slugs (needs `groups:read`).
+- `list_categories` — valid category names (needs `categories:read`).
+
+### Connect (Claude Code / Claude Desktop)
+
+```bash
+claude mcp add --transport http timeline https://<your-timeline-domain>/mcp \
+  --header "Authorization: Bearer <token>"
+```
+
+### Connect (generic MCP client config)
+
+```json
+{
+  "mcpServers": {
+    "timeline": {
+      "transport": "http",
+      "url": "https://<your-timeline-domain>/mcp",
+      "headers": { "Authorization": "Bearer <token>" }
+    }
+  }
+}
+```
+
+Then ask the agent to e.g. *"post a Travel event titled 'Trip to the coast' on
+2026-05-30 to my family group."* It will call `list_groups`, optionally
+`list_categories`, then `post_timeline_event`.
+
+---
+
+## Notes for implementers
+
+- Every event records a `source` of `web`, `api`, or `mcp` so human and agent
+  posts can be distinguished.
+- The REST endpoint and the MCP `post_timeline_event` tool create events through
+  the same `App\Support\EventCreator` service, so behaviour stays identical.
+- Keep tokens out of source control and logs. Prefer environment variables.
