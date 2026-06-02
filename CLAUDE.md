@@ -1,9 +1,11 @@
 # Family Timeline — Claude Code Instructions
 
 ## Stack
-- **Backend**: Laravel 12, PHP 8.2+, SQLite, Laravel Sanctum (SPA cookie auth)
+- **Backend**: Laravel 12, PHP 8.2+ (dev) / **8.4 + `ext-sodium` (production — required by Passport, see Deployment)**, SQLite, Laravel Sanctum (SPA cookie auth + API tokens)
 - **Frontend**: React 19, React Router v7, Vite 6
+- **Agent access**: Laravel MCP server at `/mcp` (OAuth2 via Laravel Passport) + Sanctum personal access tokens for REST. See `AGENTS.md` and "Agent & Programmatic Access" below.
 - **Dev environment**: Windows 11, Laravel Herd, Microsoft Edge
+- **Production**: Hostinger (`timeline.enhanceify.co.uk`), git-pull deploy — run `bash deploy.sh` on the server after pushing
 
 ## Starting the Dev Environment
 
@@ -61,6 +63,24 @@ Run tests:
 composer test
 ```
 
+## Deployment (Hostinger)
+
+Git-pull based. Push to `origin/main`, then on the server run the bundled
+script from the app dir (`~/domains/timeline.enhanceify.co.uk/laravel`):
+```
+bash deploy.sh   # git pull, composer install --no-dev, migrate, passport:keys (first run), cache
+```
+SSH: `ssh -p 65002 u408983312@141.136.33.219`. Frontend assets are committed
+(`public/build/`) because the server has no Node — always `npm run build` and
+commit before pushing.
+
+> **Production PHP must be 8.4 with `ext-sodium` enabled** (hPanel → PHP
+> Configuration). Laravel Passport pulls Symfony components that require PHP ≥
+> 8.4, and Passport needs sodium. `composer.json` pins `config.platform.php` to
+> 8.4 so the autoloader's platform check matches the web SAPI. After `route:cache`,
+> verify the MCP route survived: `curl -s -o /dev/null -w '%{http_code}' -X POST
+> <domain>/mcp` should return **401** (not 404).
+
 ## Project Structure
 
 ```
@@ -68,11 +88,21 @@ c:\Dev\timeline\
 ├── app/
 │   ├── Http/Controllers/     # AuthController, GroupController, EventController,
 │   │                         # CategoryController, VisibilityController,
-│   │                         # UploadController, AdminController
+│   │                         # UploadController, AdminController, TokenController
+│   ├── Http/Middleware/      # EnsureGroupRole, EnsureSuperAdmin, ResolveGroup,
+│   │                         # AuthenticateMcp (OAuth guard for /mcp)
+│   ├── Mcp/                  # MCP server (agent access)
+│   │   ├── Servers/TimelineServer.php   # registers the 15 tools
+│   │   └── Tools/            # one class per tool (post/update/delete/list/… events,
+│   │                         # groups, invites, categories) — see AGENTS.md
+│   ├── Support/
+│   │   └── EventCreator.php  # shared event create/update logic (REST + MCP)
 │   └── Models/
 ├── database/
 │   ├── migrations/
 │   └── database.sqlite       # SQLite database file
+├── AGENTS.md                 # how agents authenticate & post (tokens + MCP)
+├── deploy.sh                 # server-side deploy (pull, composer, migrate, keys, cache)
 ├── resources/js/
 │   ├── App.jsx               # Router setup
 │   ├── main.jsx              # Entry point
@@ -103,9 +133,12 @@ c:\Dev\timeline\
 │       ├── CategoryVisibility.jsx
 │       ├── GroupVisibility.jsx
 │       ├── AdminPanel.jsx
+│       ├── Profile.jsx       # incl. "API Tokens" section (create/revoke PATs)
 │       └── Landing.jsx
 └── routes/
-    └── api.php               # All API routes
+    ├── api.php               # REST API routes (Sanctum)
+    ├── web.php               # SPA catch-all + named `login` + Google OAuth callback
+    └── ai.php                # MCP server + OAuth discovery routes (Mcp::oauthRoutes)
 ```
 
 ## Key Architecture Decisions
@@ -116,6 +149,35 @@ c:\Dev\timeline\
 - `credentials: 'include'` is set on every fetch in `api.js`; Sanctum's `statefulApi()` middleware is registered in `bootstrap/app.php`
 - `SANCTUM_STATEFUL_DOMAINS` in `.env` must match the browser-visible domain (e.g. `timeline.test`)
 - On public routes (no `auth:sanctum` middleware): use `Auth::guard('sanctum')->user()` to optionally read the session — NOT `$request->user()`
+
+### Agent & Programmatic Access (API tokens + MCP)
+Two separate auth paths let AI agents/scripts post events as a real user. Full
+guide: `AGENTS.md`.
+
+- **REST + Sanctum personal access tokens** (`/api/...`): users mint scoped
+  tokens in Profile → API Tokens (`TokenController`, abilities `events:write` /
+  `events:read` / `groups:read` / `categories:read`, 2-year expiry, 180-day
+  rotation nudge). Sent as `Authorization: Bearer <token>`. Event writes are
+  gated by `ability:events:write` + a 60/min per-token throttle (`events-write`
+  limiter in `bootstrap/app.php`).
+- **MCP server over OAuth2** (`/mcp`, `routes/ai.php`): a Laravel MCP server
+  (15 tools) for Claude Desktop/Code. Auth is **Laravel Passport** (the `api`
+  guard, scope `mcp:use`) via dynamic client registration + browser consent —
+  NOT Sanctum. The custom `AuthenticateMcp` middleware returns (not throws) 401
+  so laravel/mcp's `WWW-Authenticate` discovery header survives. Passport's
+  consent view is `resources/views/oauth/authorize.blade.php`; scope + view are
+  registered in `AppServiceProvider::boot()` (so they survive `route:cache`).
+  The `User` model keeps **only Sanctum's** `HasApiTokens` — Passport's
+  `TokenGuard` works because Sanctum's `withAccessToken()` is untyped and
+  `tokenCan()` duck-types on `->can()`.
+- **Shared logic**: both paths create/update events through
+  `App\Support\EventCreator` (category-by-name resolution scoped to the group,
+  social-visibility resolution, `source` stamp). Every event records
+  `source` = `web` | `api` | `mcp`.
+- **Authorization rule** (enforced in both REST controllers and MCP tools):
+  edit/delete an event ⇒ super admin OR (current group member AND (event creator
+  OR group admin/owner)). Group-admin actions (invites, member mgmt) ⇒
+  owner/admin. Covered by `McpAuthorizationTest` + `CategoryScopeTest`.
 
 ### Active Group
 - Users have `active_group_id` on the `users` table — set when first joining/creating a group
@@ -173,17 +235,21 @@ category filter (left sidebar) carries across every view.
 
 | Table | Notable columns |
 |-------|----------------|
-| `users` | `active_group_id` |
+| `users` | `active_group_id`, `platform_role` (super_admin) |
 | `groups` | `slug`, `visibility`, `invite_code` |
 | `group_members` | `user_id`, `group_id`, `role` (owner/admin/member) |
-| `events` | `group_id`, `category_id`, `event_date`, `visibility`, `social_visibility` |
-| `event_categories` | `name`, `icon`, `color` |
+| `group_invites` | `code`, `group_id`, `created_by`, `max_uses`, `current_uses`, `expires_at` |
+| `events` | `group_id`, `category_id`, `event_date`, `visibility`, `social_visibility`, `image_url`, `album_url`, `source` (web/api/mcp) |
+| `event_categories` | `name`, `icon`, `color`, **`group_id`** (NULL = global/shared; set = that group only) |
 | `category_visibility_defaults` | `user_id`, `category_id`, `visibility_tier` |
 | `user_group_visibility` | `user_id`, `group_id`, `visibility_tier` |
+| `personal_access_tokens` | Sanctum API tokens (`abilities`, `expires_at`) |
+| `oauth_clients`, `oauth_access_tokens`, `oauth_auth_codes`, `oauth_refresh_tokens` | Passport (MCP OAuth) |
 
 ## Coding Conventions
 
-- Controllers are thin — validation and business logic in the controller, no separate service layer yet
+- Controllers are thin — validation/business logic mostly in the controller. The one shared service is `App\Support\EventCreator` (event create/update), reused by REST controllers and MCP tools so they stay in lockstep
+- MCP tools (`app/Mcp/Tools/`) and REST endpoints must enforce the **same** authorization (see "Agent & Programmatic Access"). When adding a mutating tool, mirror the REST ownership/membership checks and add a test to `McpAuthorizationTest`
 - React components use hooks only (no class components)
 - API responses follow `{ data, meta }` pattern for paginated results; flat object for single resources
 - CSS is per-page (e.g. `GroupTimeline.css`) — no CSS modules or Tailwind
