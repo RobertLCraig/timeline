@@ -3,6 +3,19 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
 import './GroupTimeline.css';
+import ZoomableTimelineView from '../components/views/ZoomableTimelineView';
+import CalendarHeatmapView from '../components/views/CalendarHeatmapView';
+import MonthCalendarView from '../components/views/MonthCalendarView';
+import PhotoMosaicView from '../components/views/PhotoMosaicView';
+import EventModal from '../components/views/EventModal';
+
+const VIEW_OPTIONS = [
+    { key: 'timeline', icon: '📜', label: 'Timeline' },
+    { key: 'zoom',     icon: '↔️', label: 'Zoom' },
+    { key: 'heatmap',  icon: '🗓️', label: 'Heatmap' },
+    { key: 'calendar', icon: '📅', label: 'Calendar' },
+    { key: 'photos',   icon: '🖼️', label: 'Photos' },
+];
 
 const SOCIAL_TIER_ICON = {
     family:        '👨‍👩‍👧‍👦',
@@ -224,6 +237,8 @@ export default function GroupTimeline() {
     const [activeCategory, setActiveCategory] = useState(null);
     const [yearRange, setYearRange] = useState(null);
     const [filterMode, setFilterMode] = useState(false);
+    const [view, setView] = useState('timeline');
+    const [selectedEvent, setSelectedEvent] = useState(null);
     const [joinCode, setJoinCode] = useState('');
     const [joinError, setJoinError] = useState('');
     const [joinLoading, setJoinLoading] = useState(false);
@@ -250,10 +265,17 @@ export default function GroupTimeline() {
     useEffect(() => {
         setActiveCategory(null);
         setYearRange(null);
+        setSelectedEvent(null);
+        setView(localStorage.getItem(`tl-view:${slug}`) || 'timeline');
         yearRangeSourceRef.current = 'init';
         loadData();
         api.get('/categories').then(d => setCategories(d.categories)).catch(() => { });
     }, [slug]);
+
+    // Persist the chosen view per group
+    useEffect(() => {
+        localStorage.setItem(`tl-view:${slug}`, view);
+    }, [view, slug]);
 
     // Initialise year range with a viewport-proportional window size.
     // We measure the rendered timeline height vs the viewport to decide how
@@ -282,6 +304,7 @@ export default function GroupTimeline() {
 
     // ── Scroll to year when slider is explicitly moved (not auto-sync) ────────
     useEffect(() => {
+        if (view !== 'timeline') return;
         if (yearRangeSourceRef.current !== 'slider') return;
         if (filterMode || !yearRange) return;
 
@@ -305,11 +328,11 @@ export default function GroupTimeline() {
             window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
             setTimeout(() => { isSliderScrollingRef.current = false; }, 800);
         }
-    }, [yearRange, filterMode, sort]);
+    }, [yearRange, filterMode, sort, view]);
 
     // ── Auto-sync slider window as page scrolls (scroll mode only) ───────────
     useEffect(() => {
-        if (filterMode || !showSlider) return;
+        if (view !== 'timeline' || filterMode || !showSlider) return;
 
         const onScroll = () => {
             if (isSliderScrollingRef.current) return;
@@ -342,7 +365,7 @@ export default function GroupTimeline() {
         const debounced = () => { clearTimeout(timer); timer = setTimeout(onScroll, 120); };
         window.addEventListener('scroll', debounced, { passive: true });
         return () => { window.removeEventListener('scroll', debounced); clearTimeout(timer); };
-    }, [filterMode, showSlider, yearRange, minEventYear, maxEventYear]);
+    }, [view, filterMode, showSlider, yearRange, minEventYear, maxEventYear]);
 
     const loadData = async () => {
         setLoading(true);
@@ -398,7 +421,7 @@ export default function GroupTimeline() {
     }, [events, categories]);
 
     // Only filter events when filter mode is explicitly on
-    const isYearFiltered = filterMode && showSlider && yearRange !== null &&
+    const isYearFiltered = view === 'timeline' && filterMode && showSlider && yearRange !== null &&
         (yearRange.start > minEventYear || yearRange.end < maxEventYear);
 
     const resetYearRange = () => {
@@ -515,7 +538,7 @@ export default function GroupTimeline() {
                 )}
 
                 {/* Three-column layout: category | timeline | year-range */}
-                <div className="timeline-layout fade-in">
+                <div className={`timeline-layout fade-in${view !== 'timeline' ? ' no-right' : ''}`}>
 
                     {/* ── Left sidebar: Category filter ── */}
                     <aside className="sidebar-desktop">
@@ -563,7 +586,7 @@ export default function GroupTimeline() {
                                     ))}
                                 </div>
                             )}
-                            {sliderProps && (
+                            {view === 'timeline' && sliderProps && (
                                 <div className="mobile-map-section">
                                     {yearRangeHeader(true)}
                                     <YearMapSlider {...sliderProps} />
@@ -573,15 +596,32 @@ export default function GroupTimeline() {
 
                         {/* Filter / sort bar */}
                         <div className="timeline-filters">
-                            <select
-                                className="form-select"
-                                value={sort}
-                                onChange={(e) => setSort(e.target.value)}
-                                style={{ maxWidth: '160px' }}
-                            >
-                                <option value="desc">Newest First</option>
-                                <option value="asc">Oldest First</option>
-                            </select>
+                            <div className="view-switcher" role="tablist" aria-label="Timeline view">
+                                {VIEW_OPTIONS.map(opt => (
+                                    <button
+                                        key={opt.key}
+                                        className={`view-switcher-btn${view === opt.key ? ' active' : ''}`}
+                                        onClick={() => setView(opt.key)}
+                                        role="tab"
+                                        aria-selected={view === opt.key}
+                                        title={opt.label}
+                                    >
+                                        <span className="vs-icon">{opt.icon}</span>
+                                        <span className="vs-label">{opt.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                            {view === 'timeline' && (
+                                <select
+                                    className="form-select"
+                                    value={sort}
+                                    onChange={(e) => setSort(e.target.value)}
+                                    style={{ maxWidth: '160px' }}
+                                >
+                                    <option value="desc">Newest First</option>
+                                    <option value="asc">Oldest First</option>
+                                </select>
+                            )}
                             {activeCategory && (
                                 <button className="filter-pill" onClick={() => setActiveCategory(null)}>
                                     {categories.find(c => c.id === activeCategory)?.icon}{' '}
@@ -611,6 +651,14 @@ export default function GroupTimeline() {
                                     </button>
                                 )}
                             </div>
+                        ) : view === 'zoom' ? (
+                            <ZoomableTimelineView events={displayedEvents} onSelect={setSelectedEvent} />
+                        ) : view === 'heatmap' ? (
+                            <CalendarHeatmapView events={displayedEvents} onSelect={setSelectedEvent} />
+                        ) : view === 'calendar' ? (
+                            <MonthCalendarView events={displayedEvents} onSelect={setSelectedEvent} />
+                        ) : view === 'photos' ? (
+                            <PhotoMosaicView events={displayedEvents} onSelect={setSelectedEvent} />
                         ) : (
                             <div className="timeline">
                                 {displayedEvents.map((event, i) => (
@@ -675,18 +723,31 @@ export default function GroupTimeline() {
                         )}
                     </div>
 
-                    {/* ── Right sidebar: Year range minimap ── */}
-                    <aside className="sidebar-desktop sidebar-year-range">
-                        {sliderProps && (
-                            <div className="sidebar-section sidebar-map-section">
-                                {yearRangeHeader(false)}
-                                <YearMapSlider {...sliderProps} />
-                            </div>
-                        )}
-                    </aside>
+                    {/* ── Right sidebar: Year range minimap (timeline view only) ── */}
+                    {view === 'timeline' && (
+                        <aside className="sidebar-desktop sidebar-year-range">
+                            {sliderProps && (
+                                <div className="sidebar-section sidebar-map-section">
+                                    {yearRangeHeader(false)}
+                                    <YearMapSlider {...sliderProps} />
+                                </div>
+                            )}
+                        </aside>
+                    )}
 
                 </div>
             </div>
+
+            {selectedEvent && (
+                <EventModal
+                    event={selectedEvent}
+                    slug={slug}
+                    canManage={canManage}
+                    currentUserId={user?.id}
+                    onClose={() => setSelectedEvent(null)}
+                    onDelete={async (id) => { await handleDelete(id); setSelectedEvent(null); }}
+                />
+            )}
         </div>
     );
 }
