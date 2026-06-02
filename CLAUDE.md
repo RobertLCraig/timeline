@@ -82,9 +82,16 @@ c:\Dev\timeline\
 │   │   └── api.js            # API client (cookie auth, XSRF header)
 │   ├── components/
 │   │   ├── Navbar.jsx
-│   │   └── ProtectedRoute.jsx
+│   │   ├── ProtectedRoute.jsx
+│   │   └── views/             # Alternative timeline views (see "Timeline Views")
+│   │       ├── ZoomableTimelineView.jsx
+│   │       ├── CalendarHeatmapView.jsx
+│   │       ├── MonthCalendarView.jsx
+│   │       ├── PhotoMosaicView.jsx
+│   │       ├── EventModal.jsx   # Shared event-detail dialog for the above views
+│   │       └── views.css        # Shared styles for all view components + modal
 │   └── pages/
-│       ├── GroupTimeline.jsx  # Main timeline view + YearMapSlider component
+│       ├── GroupTimeline.jsx  # View switcher + vertical timeline + YearMapSlider
 │       ├── GroupTimeline.css
 │       ├── EventForm.jsx
 │       ├── GroupSettings.jsx
@@ -131,6 +138,29 @@ Tiers (numeric rank, higher = broader audience):
 - Default tier for groups/events: `friends` unless customised
 - Per-user category defaults: `category_visibility_defaults` table (`user_id`, `category_id`, `visibility_tier`)
 - Per-user group tier: `user_group_visibility` table (`user_id`, `group_id`, `visibility_tier`)
+
+### Timeline Views (view switcher)
+`GroupTimeline.jsx` renders a segmented **view switcher** in the filter bar that toggles
+how a group's events are displayed. All views consume the same `displayedEvents`, so the
+category filter (left sidebar) carries across every view.
+
+| Key | View | Component | Notes |
+|-----|------|-----------|-------|
+| `timeline` | Vertical cards | (inline in `GroupTimeline.jsx`) | The original view; the only one with sort + YearMapSlider |
+| `zoom` | Zoomable horizontal axis | `ZoomableTimelineView.jsx` | `+`/`−` zoom (8–800 px/yr), nice-stepped year ticks, greedy lane-stacking to avoid label overlap |
+| `heatmap` | Year × month density grid | `CalendarHeatmapView.jsx` | Cell shade scales with event count; click a cell → that month's events listed below |
+| `calendar` | Month grid | `MonthCalendarView.jsx` | Prev/next nav + "Latest" jump; defaults to the most recent month with events |
+| `photos` | Image masonry by year | `PhotoMosaicView.jsx` | Only events with `image_url`; click a tile → modal |
+
+- **Persistence**: the chosen view is saved per group in `localStorage` under `tl-view:<slug>`
+  and restored on navigation (see the `slug` effect in `GroupTimeline.jsx`).
+- **Shared modal**: the non-timeline views call `onSelect(event)`, which opens the page-level
+  `EventModal` (image, badges, description, album link, Edit/Delete, `Esc` to close).
+- **Timeline-only behaviour**: the YearMapSlider, scroll-sync, scroll-to-year, and year-range
+  filter are all gated to `view === 'timeline'`; the layout adds `.no-right` (two columns)
+  for the other views.
+- New view? Add it to `VIEW_OPTIONS`, render it in the view switch, and have it accept
+  `{ events, onSelect }`. Put styles in `views.css` using the global design tokens.
 
 ### YearMapSlider (GroupTimeline.jsx)
 - Vertical minimap-style year range selector (VSCode-inspired)
