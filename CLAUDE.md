@@ -24,6 +24,25 @@ npm run build
 ```
 **Browser**: Microsoft Edge. Use `Ctrl+Shift+R` for a hard refresh after rebuilding.
 
+### Troubleshooting: `timeline.test` shows the IIS welcome page (port 80 conflict)
+
+If `http://timeline.test` returns the blue **"Internet Information Services"** page (or
+`curl -I` reports `Server: Microsoft-IIS/10.0`), Windows' IIS has grabbed port 80 and is
+starving Herd's nginx. IIS isn't used by this project — disable it (one-time, elevated):
+```powershell
+Stop-Service W3SVC, WAS -Force
+Set-Service  W3SVC -StartupType Disabled   # stops it returning on every boot
+```
+Then make Herd reclaim the freed port:
+```
+"C:\Users\r\.config\herd\bin\herd.bat" restart
+```
+Confirm: `http://timeline.test` should now answer `200` from `nginx` with
+`<title>Family Timeline</title>`, and `Get-NetTCPConnection -LocalPort 80 -State Listen`
+should show an `nginx` PID.
+
+To re-enable IIS later (elevated): `Set-Service W3SVC -StartupType Automatic; Start-Service W3SVC`.
+
 ## PHP / Artisan Commands
 
 Use `php artisan` for all Artisan commands. On **Windows with Laravel Herd**, `php` may not be
