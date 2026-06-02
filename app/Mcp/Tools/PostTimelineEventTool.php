@@ -45,7 +45,7 @@ class PostTimelineEventTool extends Tool
             return Response::error('You are not a member of that group.');
         }
 
-        $categoryId = EventCreator::resolveCategoryId($validated['category'] ?? null);
+        $categoryId = EventCreator::resolveCategoryId($validated['category'] ?? null, $group->id);
 
         $event = EventCreator::create($user, $group, [
             'title' => $validated['title'],

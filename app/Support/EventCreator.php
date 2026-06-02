@@ -16,26 +16,49 @@ use Illuminate\Validation\ValidationException;
 class EventCreator
 {
     /**
-     * Resolve a category name (case-insensitive) to its id.
-     * Returns null for null/empty input. Throws a validation error listing the
-     * valid names when no match is found.
+     * Resolve a category name (case-insensitive) to its id, scoped to the
+     * categories a group may use (global + the group's own). Returns null for
+     * null/empty input. Throws a validation error listing the valid names when
+     * no match is found.
      */
-    public static function resolveCategoryId(?string $name): ?int
+    public static function resolveCategoryId(?string $name, ?int $groupId = null): ?int
     {
         if ($name === null || trim($name) === '') {
             return null;
         }
 
-        $category = EventCategory::whereRaw('LOWER(name) = ?', [mb_strtolower(trim($name))])->first();
+        $category = EventCategory::forGroup($groupId)
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($name))])
+            ->first();
 
         if (! $category) {
-            $valid = EventCategory::orderBy('name')->pluck('name')->implode(', ');
+            $valid = EventCategory::forGroup($groupId)->orderBy('name')->pluck('name')->implode(', ');
             throw ValidationException::withMessages([
                 'category' => "Unknown category \"{$name}\". Valid categories: {$valid}.",
             ]);
         }
 
         return $category->id;
+    }
+
+    /**
+     * Ensure a category id is usable by the group (global or the group's own).
+     * Throws a validation error otherwise — stops one group using another
+     * group's private category.
+     */
+    public static function assertCategoryAllowedForGroup(?int $categoryId, int $groupId): void
+    {
+        if ($categoryId === null) {
+            return;
+        }
+
+        $allowed = EventCategory::forGroup($groupId)->whereKey($categoryId)->exists();
+
+        if (! $allowed) {
+            throw ValidationException::withMessages([
+                'category_id' => 'That category does not belong to this group.',
+            ]);
+        }
     }
 
     /**
@@ -73,6 +96,7 @@ class EventCreator
     public static function create(User $user, Group $group, array $data, string $source): Event
     {
         $categoryId = $data['category_id'] ?? null;
+        self::assertCategoryAllowedForGroup($categoryId, $group->id);
 
         $socialVisibility = self::resolveSocialVisibility(
             $user,
@@ -112,6 +136,10 @@ class EventCreator
      */
     public static function applyUpdate(Event $event, User $user, array $data): Event
     {
+        if (array_key_exists('category_id', $data)) {
+            self::assertCategoryAllowedForGroup($data['category_id'], $event->group_id);
+        }
+
         $isOverride = array_key_exists('visibility_is_override', $data)
             ? (bool) $data['visibility_is_override']
             : $event->visibility_is_override;

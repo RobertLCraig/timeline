@@ -128,8 +128,8 @@ agent receives its own scoped token. It exposes three tools:
 - `delete_timeline_event` — permanently delete an event by `event_id`.
 - `list_timeline_events` — find events (and their ids) in a group by text/date/category, so you can edit or delete a specific one.
 - `list_groups` — the user's groups + slugs.
-- `list_categories` — valid category names.
-- `create_category` — add a new (global, shared) event category if it doesn't exist.
+- `list_categories` — global category names; pass a `group` to also see that group's own.
+- `create_category` — add a category **for a specific group** (only that group can use it). Returns an existing global/group category with the same name instead of duplicating.
 - `list_group_members` — members of a group and their roles.
 - `create_group_invite` — generate a shareable join code (group owner/admin only).
 

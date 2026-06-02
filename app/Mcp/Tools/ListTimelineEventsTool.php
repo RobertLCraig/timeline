@@ -85,7 +85,7 @@ class ListTimelineEventsTool extends Tool
         }
 
         if (! empty($validated['category'])) {
-            $q->where('category_id', EventCreator::resolveCategoryId($validated['category']));
+            $q->where('category_id', EventCreator::resolveCategoryId($validated['category'], $group->id));
         }
 
         if (! empty($validated['date_from'])) {

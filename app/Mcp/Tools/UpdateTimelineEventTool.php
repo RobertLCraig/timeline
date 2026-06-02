@@ -65,7 +65,7 @@ class UpdateTimelineEventTool extends Tool
         unset($data['event_id']);
 
         if (array_key_exists('category', $data)) {
-            $data['category_id'] = EventCreator::resolveCategoryId($data['category']);
+            $data['category_id'] = EventCreator::resolveCategoryId($data['category'], $event->group_id);
             unset($data['category']);
         }
 

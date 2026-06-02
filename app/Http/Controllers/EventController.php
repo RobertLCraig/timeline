@@ -138,7 +138,7 @@ class EventController extends Controller
 
         // Agent convenience: accept a category by name when no id is given.
         if (! $request->filled('category_id') && $request->filled('category')) {
-            $request->merge(['category_id' => EventCreator::resolveCategoryId($request->input('category'))]);
+            $request->merge(['category_id' => EventCreator::resolveCategoryId($request->input('category'), $group->id)]);
         }
 
         $validated = $request->validate([
@@ -188,7 +188,7 @@ class EventController extends Controller
 
         // Agent convenience: accept a category by name when no id is given.
         if (! $request->filled('category_id') && $request->filled('category')) {
-            $request->merge(['category_id' => EventCreator::resolveCategoryId($request->input('category'))]);
+            $request->merge(['category_id' => EventCreator::resolveCategoryId($request->input('category'), $group->id)]);
         }
 
         $validated = $request->validate([
