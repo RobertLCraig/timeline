@@ -74,6 +74,16 @@ SSH: `ssh -p 65002 u408983312@141.136.33.219`. Frontend assets are committed
 (`public/build/`) because the server has no Node — always `npm run build` and
 commit before pushing.
 
+> **⚠ Production holds real user data — do not clobber it.** Deploys run only
+> additive `migrate --force`. On production **never** run `migrate:fresh`,
+> `migrate:rollback`, `db:wipe`, or `db:seed`. The seeders (`DatabaseSeeder` /
+> `DemoSeeder`) are **dev/local fixtures**: they create the default super-admin
+> (`admin@family.com` / `admin123`) and add every user to the demo group, so the
+> admin + demo block is gated to non-production. Keep new migrations additive
+> (add nullable columns / new tables); never `drop`/`truncate` data tables in a
+> migration that will run on prod. The default admin is **local only** — it must
+> not exist with known credentials on production.
+
 > **Production PHP must be 8.4 with `ext-sodium` enabled** (hPanel → PHP
 > Configuration). Laravel Passport pulls Symfony components that require PHP ≥
 > 8.4, and Passport needs sodium. `composer.json` pins `config.platform.php` to
