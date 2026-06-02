@@ -120,6 +120,7 @@ agent receives its own scoped token. It exposes three tools:
 - `post_timeline_event` — create an event.
 - `update_timeline_event` — edit an existing event by `event_id` (partial; only the fields you pass change).
 - `delete_timeline_event` — permanently delete an event by `event_id`.
+- `list_timeline_events` — find events (and their ids) in a group by text/date/category, so you can edit or delete a specific one.
 - `list_groups` — the user's groups + slugs.
 - `list_categories` — valid category names.
 
