@@ -32,8 +32,15 @@ class UpdateTimelineEventTool extends Tool
             'visibility' => 'sometimes|in:public,members,private',
             'social_visibility' => 'sometimes|in:family,close_friends,friends,acquaintances,public,private',
             'image_url' => 'sometimes|nullable|string|max:500',
-            'album_url' => 'sometimes|nullable|url|max:1000',
+            'album_url' => 'sometimes|nullable|string|max:1000',
         ]);
+
+        // Allow clearing a photo/album by passing an empty string.
+        foreach (['image_url', 'album_url'] as $field) {
+            if (array_key_exists($field, $validated) && $validated[$field] === '') {
+                $validated[$field] = null;
+            }
+        }
 
         $event = Event::with('group')->find($validated['event_id']);
         if (! $event) {

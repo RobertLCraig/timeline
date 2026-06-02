@@ -123,6 +123,13 @@ agent receives its own scoped token. It exposes three tools:
 - `list_timeline_events` — find events (and their ids) in a group by text/date/category, so you can edit or delete a specific one.
 - `list_groups` — the user's groups + slugs.
 - `list_categories` — valid category names.
+- `create_category` — add a new (global, shared) event category if it doesn't exist.
+- `list_group_members` — members of a group and their roles.
+- `create_group_invite` — generate a shareable join code (group owner/admin only).
+
+Photos & albums: `post_timeline_event` / `update_timeline_event` accept
+`image_url` (one photo) and `album_url` (a link to a full album). On update,
+pass an empty string for either to remove it.
 
 > **Tip:** sign in to the Family Timeline in your default browser *first*. Then
 > the "Connect" step jumps straight to the consent screen instead of asking you

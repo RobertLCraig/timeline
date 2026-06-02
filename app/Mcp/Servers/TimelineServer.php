@@ -2,8 +2,11 @@
 
 namespace App\Mcp\Servers;
 
+use App\Mcp\Tools\CreateCategoryTool;
+use App\Mcp\Tools\CreateGroupInviteTool;
 use App\Mcp\Tools\DeleteTimelineEventTool;
 use App\Mcp\Tools\ListCategoriesTool;
+use App\Mcp\Tools\ListGroupMembersTool;
 use App\Mcp\Tools\ListGroupsTool;
 use App\Mcp\Tools\ListTimelineEventsTool;
 use App\Mcp\Tools\PostTimelineEventTool;
@@ -30,6 +33,11 @@ Recommended flow:
 4. To edit or delete an event, first call `list_timeline_events` (search by
    text/date/category) to find its event_id, then call `update_timeline_event`
    or `delete_timeline_event` with that id. Never guess an event_id.
+
+Photos: set `image_url` (a single photo) and/or `album_url` (a link to a full
+album) when posting or updating an event. On update, pass an empty string to
+remove one. You can also `create_category`, `list_group_members`, and
+`create_group_invite` (owners/admins only).
 MARKDOWN)]
 class TimelineServer extends Server
 {
@@ -40,6 +48,9 @@ class TimelineServer extends Server
         ListTimelineEventsTool::class,
         ListGroupsTool::class,
         ListCategoriesTool::class,
+        CreateCategoryTool::class,
+        ListGroupMembersTool::class,
+        CreateGroupInviteTool::class,
     ];
 
     protected array $resources = [];
