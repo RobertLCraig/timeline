@@ -117,7 +117,11 @@ server instead of raw HTTP. **It authenticates via OAuth2, not the Bearer token*
 — the agent registers itself, you log in and consent in the browser, and the
 agent receives its own scoped token. It exposes three tools:
 
+- `whoami` — the signed-in user, their groups/roles, and active group (call first to orient).
 - `post_timeline_event` — create an event.
+- `get_timeline_event` — full details of one event by `event_id`.
+- `create_group` — create a new group (you become owner).
+- `list_group_invites` — view a group's invite codes (owner/admin only).
 - `update_timeline_event` — edit an existing event by `event_id` (partial; only the fields you pass change).
 - `delete_timeline_event` — permanently delete an event by `event_id`.
 - `list_timeline_events` — find events (and their ids) in a group by text/date/category, so you can edit or delete a specific one.

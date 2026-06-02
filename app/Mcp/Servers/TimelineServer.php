@@ -4,13 +4,17 @@ namespace App\Mcp\Servers;
 
 use App\Mcp\Tools\CreateCategoryTool;
 use App\Mcp\Tools\CreateGroupInviteTool;
+use App\Mcp\Tools\CreateGroupTool;
 use App\Mcp\Tools\DeleteTimelineEventTool;
+use App\Mcp\Tools\GetTimelineEventTool;
 use App\Mcp\Tools\ListCategoriesTool;
+use App\Mcp\Tools\ListGroupInvitesTool;
 use App\Mcp\Tools\ListGroupMembersTool;
 use App\Mcp\Tools\ListGroupsTool;
 use App\Mcp\Tools\ListTimelineEventsTool;
 use App\Mcp\Tools\PostTimelineEventTool;
 use App\Mcp\Tools\UpdateTimelineEventTool;
+use App\Mcp\Tools\WhoamiTool;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
@@ -42,15 +46,19 @@ MARKDOWN)]
 class TimelineServer extends Server
 {
     protected array $tools = [
+        WhoamiTool::class,
         PostTimelineEventTool::class,
+        GetTimelineEventTool::class,
         UpdateTimelineEventTool::class,
         DeleteTimelineEventTool::class,
         ListTimelineEventsTool::class,
         ListGroupsTool::class,
+        CreateGroupTool::class,
         ListCategoriesTool::class,
         CreateCategoryTool::class,
         ListGroupMembersTool::class,
         CreateGroupInviteTool::class,
+        ListGroupInvitesTool::class,
     ];
 
     protected array $resources = [];
