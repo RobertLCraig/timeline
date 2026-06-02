@@ -16,6 +16,15 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# PRODUCTION DATA SAFETY — production holds real user data.
+# This script only ever runs additive `migrate --force`. NEVER run any of these
+# against production: `migrate:fresh`, `migrate:rollback`, `db:wipe`, or
+# `db:seed` (the seeders create a default super-admin and add every user to the
+# demo group — dev fixtures only, gated to non-production in DatabaseSeeder).
+# Keep migrations additive; never destructive `drop`/`truncate` of data tables.
+# ─────────────────────────────────────────────────────────────────────────────
+
 PHP_BIN="${PHP_BIN:-php}"
 COMPOSER_BIN="${COMPOSER_BIN:-composer}"
 

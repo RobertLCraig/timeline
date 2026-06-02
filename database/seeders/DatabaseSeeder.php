@@ -10,17 +10,9 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Create or update default super admin
-        User::updateOrCreate(
-            ['email' => 'admin@family.com'],
-            [
-                'name' => 'Admin',
-                'password' => bcrypt('admin123'),
-                'platform_role' => 'super_admin',
-            ]
-        );
-
-        // Create default event categories
+        // Default GLOBAL event categories. Safe in every environment: idempotent
+        // and scoped to group_id = null so it never touches a group's own
+        // categories that happen to share a name.
         $categories = [
             ['name' => 'Birth', 'icon' => '👶', 'color' => '#ec4899'],
             ['name' => 'Move', 'icon' => '🏠', 'color' => '#8b5cf6'],
@@ -35,8 +27,31 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($categories as $cat) {
-            EventCategory::updateOrCreate(['name' => $cat['name']], $cat);
+            EventCategory::updateOrCreate(
+                ['name' => $cat['name'], 'group_id' => null],
+                $cat
+            );
         }
+
+        // ── DEV/LOCAL FIXTURES ONLY — never seed on production ──────────────
+        // The default super-admin has well-known credentials (admin@family.com /
+        // admin123) and DemoSeeder adds every existing user to the demo group;
+        // running either against real production data would be unsafe.
+        if (app()->environment('production')) {
+            $this->command?->warn('Production: skipping dev fixtures (default admin + demo seed).');
+
+            return;
+        }
+
+        // Local-only default super admin.
+        User::updateOrCreate(
+            ['email' => 'admin@family.com'],
+            [
+                'name' => 'Admin',
+                'password' => bcrypt('admin123'),
+                'platform_role' => 'super_admin',
+            ]
+        );
 
         $this->call(DemoSeeder::class);
     }
