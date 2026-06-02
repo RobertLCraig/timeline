@@ -4,6 +4,7 @@ namespace App\Mcp\Tools;
 
 use App\Models\Event;
 use App\Models\Group;
+use App\Models\UserGroupVisibility;
 use App\Support\EventCreator;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -47,12 +48,27 @@ class ListTimelineEventsTool extends Tool
 
         $q = Event::where('group_id', $group->id)->with('category:id,name');
 
-        // Visibility: managers see everything; members see public/members events
-        // plus their own private ones.
+        // Visibility — mirror EventController::index for non-managers so the
+        // tool never discloses events the web timeline would hide.
         if (! $isManager) {
+            // Step 1: legacy membership visibility (public/members + own).
             $q->where(function ($w) use ($user) {
                 $w->whereIn('visibility', ['public', 'members'])
                     ->orWhere('created_by', $user->id);
+            });
+
+            // Step 2: social-tier filter based on how this user classifies the group.
+            $groupTier = UserGroupVisibility::where('user_id', $user->id)
+                ->where('group_id', $group->id)
+                ->value('visibility_tier') ?? 'friends';
+            $visibleTiers = Event::visibleTiersForGroupTier($groupTier);
+
+            $q->where(function ($w) use ($visibleTiers, $user) {
+                $w->whereIn('social_visibility', $visibleTiers)
+                    ->orWhere(function ($w2) use ($user) {
+                        $w2->where('social_visibility', 'private')
+                            ->where('created_by', $user->id);
+                    });
             });
         }
 

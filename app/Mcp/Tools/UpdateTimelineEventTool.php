@@ -49,10 +49,12 @@ class UpdateTimelineEventTool extends Tool
 
         $group = $event->group;
 
-        // Same edit rule as the REST endpoint: creator, group admin/owner, or super admin.
-        $canEdit = $event->created_by === $user->id
-            || $group->isAdminOrOwner($user->id)
-            || $user->isSuperAdmin();
+        // Same edit rule as the REST endpoint: super admins may edit anything;
+        // otherwise the user must be a current member of the group AND either
+        // the event's creator or a group admin/owner.
+        $isMember = $group->getMemberRole($user->id) !== null;
+        $canEdit = $user->isSuperAdmin()
+            || ($isMember && ($event->created_by === $user->id || $group->isAdminOrOwner($user->id)));
 
         if (! $canEdit) {
             return Response::error('You do not have permission to edit this event.');

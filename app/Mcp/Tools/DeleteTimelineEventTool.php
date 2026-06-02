@@ -31,10 +31,12 @@ class DeleteTimelineEventTool extends Tool
             return Response::error("Event #{$validated['event_id']} not found.");
         }
 
-        // Same rule as the REST endpoint: creator, group admin/owner, or super admin.
-        $canDelete = $event->created_by === $user->id
-            || $event->group->isAdminOrOwner($user->id)
-            || $user->isSuperAdmin();
+        // Same rule as the REST endpoint: super admins may delete anything;
+        // otherwise the user must be a current member of the group AND either
+        // the event's creator or a group admin/owner.
+        $isMember = $event->group->getMemberRole($user->id) !== null;
+        $canDelete = $user->isSuperAdmin()
+            || ($isMember && ($event->created_by === $user->id || $event->group->isAdminOrOwner($user->id)));
 
         if (! $canDelete) {
             return Response::error('You do not have permission to delete this event.');
