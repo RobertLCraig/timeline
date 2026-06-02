@@ -14,6 +14,7 @@ A private, multi-user web application for families to record, share, and explore
 - **Year Range Minimap** — VSCode-inspired vertical slider on the right sidebar. Scroll mode navigates the timeline; Filter mode hides events outside the selected range. Direction-aware (matches newest-first / oldest-first sort).
 - **Category Filter Sidebar** — Left sidebar for filtering by event category, with per-category event counts.
 - **Social Visibility Tiers** — Per-event and per-category defaults: Private → Family → Close Friends → Friends → Acquaintances → Public.
+- **AI Agent / API Access** — Post and manage events from Claude or scripts via a Laravel MCP server (`/mcp`, OAuth) and Sanctum API tokens. See [AGENTS.md](./AGENTS.md).
 - **Admin Panel** — Super-admin management of users and referral codes.
 - **Demo Group** — "The Johnson Family" (70 events, 1980–2024) lets anyone browse without an account.
 
@@ -86,5 +87,6 @@ After seeding, a super-admin account is created:
 | File | Purpose |
 |---|---|
 | [INSTRUCTIONS.md](./INSTRUCTIONS.md) | Setup, usage guide, and deployment |
+| [AGENTS.md](./AGENTS.md) | Posting events from AI agents / scripts (MCP + API tokens) |
 | [HANDOVER.md](./HANDOVER.md) | Technical architecture and codebase overview |
 | [CLAUDE.md](./CLAUDE.md) | AI assistant instructions for this project |

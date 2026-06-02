@@ -115,23 +115,33 @@ curl -X POST https://timeline.test/api/groups/<group-slug>/events \
 MCP-capable agents (Claude Desktop, Claude Code) use the hosted Streamable-HTTP
 server instead of raw HTTP. **It authenticates via OAuth2, not the Bearer token**
 — the agent registers itself, you log in and consent in the browser, and the
-agent receives its own scoped token. It exposes three tools:
+agent receives its own scoped token (scope `mcp:use`). It exposes 15 tools:
 
+*Orientation*
 - `whoami` — the signed-in user, their groups/roles, and active group (call first to orient).
+
+*Events*
 - `post_timeline_event` — create an event.
 - `get_timeline_event` — full details of one event by `event_id`.
+- `update_timeline_event` — edit an event by `event_id` (partial; only the fields you pass change).
+- `delete_timeline_event` — permanently delete an event by `event_id`.
+- `list_timeline_events` — find events (and their ids) in a group by text/date/category.
+
+*Groups*
+- `list_groups` — the user's groups + slugs.
 - `create_group` — create a new group (you become owner).
 - `join_group_by_code` — join a group using a shared invite code.
 - `set_active_group` — set your default group.
-- `list_group_invites` — view a group's invite codes (owner/admin only).
-- `update_timeline_event` — edit an existing event by `event_id` (partial; only the fields you pass change).
-- `delete_timeline_event` — permanently delete an event by `event_id`.
-- `list_timeline_events` — find events (and their ids) in a group by text/date/category, so you can edit or delete a specific one.
-- `list_groups` — the user's groups + slugs.
-- `list_categories` — global category names; pass a `group` to also see that group's own.
-- `create_category` — add a category **for a specific group** (only that group can use it). Returns an existing global/group category with the same name instead of duplicating.
 - `list_group_members` — members of a group and their roles.
 - `create_group_invite` — generate a shareable join code (group owner/admin only).
+- `list_group_invites` — view a group's invite codes (owner/admin only).
+
+*Categories*
+- `list_categories` — global category names; pass a `group` to also see that group's own.
+- `create_category` — add a category **for a specific group** (members only; only that group can use it). Returns an existing global/group category with the same name instead of duplicating.
+
+All event edits/deletes require you to be the event's creator or a group
+admin/owner; group-admin actions require owner/admin.
 
 Photos & albums: `post_timeline_event` / `update_timeline_event` accept
 `image_url` (one photo) and `album_url` (a link to a full album). On update,

@@ -79,6 +79,8 @@ c:\Dev\timeline\
 - `statefulApi()` is registered in `bootstrap/app.php`, which adds session, CSRF, and cookie middleware to the API.
 - `SANCTUM_STATEFUL_DOMAINS` in `.env` must list the domain(s) the browser uses to access the app (without protocol). Example: `timeline.test,localhost,localhost:5173`.
 - All authenticated routes use `auth:sanctum` middleware (works identically with session cookies).
+- **API tokens**: the same `auth:sanctum` routes also accept Sanctum personal access tokens (`Authorization: Bearer …`) for scripts/agents — created in Profile → API Tokens with scoped abilities. CSRF is skipped for token (non-stateful) requests.
+- **MCP / agent access**: a separate Laravel MCP server at `/mcp` (`routes/ai.php`, 15 tools) authenticates AI agents via **Laravel Passport OAuth2** (the `api` guard, scope `mcp:use`) — independent of Sanctum. See `AGENTS.md` and CLAUDE.md → "Agent & Programmatic Access". Both paths funnel event writes through `App\Support\EventCreator` and enforce the same ownership/membership authorization.
 - **Optional auth pattern**: Public routes that *optionally* read the session use `Auth::guard('sanctum')->user()` — NOT `$request->user()` — to avoid a 401 when unauthenticated.
 
 ### Key Models & Tables

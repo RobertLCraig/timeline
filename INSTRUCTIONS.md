@@ -95,6 +95,19 @@ Visit `http://timeline.test/g/demo` to explore "The Johnson Family" timeline —
 2. Click **+ Add Event**.
 3. Fill in: title, date, category, description, visibility settings, and optionally an image or album link.
 
+### Adding events via AI agents / API
+
+Events can also be posted programmatically by AI agents (Claude, etc.) or scripts:
+
+- **AI agents (Claude Desktop / Code)** connect to the MCP server at `/mcp` via
+  OAuth — add a custom connector pointing at `https://<domain>/mcp` and approve
+  the consent screen. The agent then has tools to create/edit/delete/search
+  events, manage categories, and handle group members/invites.
+- **Scripts / REST** authenticate with a personal access token created under
+  **Profile → API Tokens**, sent as `Authorization: Bearer <token>`.
+
+Full setup and the tool/endpoint reference live in **[AGENTS.md](./AGENTS.md)**.
+
 ### Visibility settings
 
 Each event has two visibility controls:
@@ -139,6 +152,12 @@ Default super-admin login: `admin@family.com` / `admin123`
 > **Hostinger / shared hosting note:** The server has no Node.js, so Vite cannot run
 > there. `public/build/` is committed to git — always run `npm run build` locally and
 > commit the updated `public/build/` before pushing to the server.
+
+> **PHP requirement:** production must run **PHP 8.4 with the `sodium` extension
+> enabled** (hPanel → PHP Configuration). Laravel Passport (used by the MCP OAuth
+> server) pulls in Symfony components that require PHP ≥ 8.4 and needs `ext-sodium`.
+> `composer.json` pins `config.platform.php` to `8.4` so Composer resolves and
+> emits its platform check against the web PHP version regardless of the CLI version.
 
 ### 1. Build frontend assets
 
