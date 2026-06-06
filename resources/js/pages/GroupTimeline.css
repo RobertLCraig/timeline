@@ -331,7 +331,10 @@
 
 .mobile-cat-btn {
     flex-shrink: 0;
-    padding: 5px var(--space-sm);
+    display: inline-flex;
+    align-items: center;
+    min-height: 38px;
+    padding: 6px var(--space-md);
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 999px;
@@ -340,6 +343,7 @@
     cursor: pointer;
     white-space: nowrap;
     transition: all var(--transition-fast);
+    -webkit-tap-highlight-color: transparent;
 }
 .mobile-cat-btn:hover {
     background: var(--bg-surface);
@@ -371,10 +375,31 @@
     padding: var(--space-sm) var(--space-sm) var(--space-xs);
 }
 
-/* Mobile year-map is shorter (landscape feel) */
+/* Mobile year-map is shorter (landscape feel) but tall enough to drag by touch */
 .mobile-map-section .year-map {
-    height: 140px;
+    height: 170px;
     border-radius: 0;
+}
+
+/* Larger, easier-to-grab drag handles on touch screens */
+.mobile-map-section .year-map-handle {
+    height: 24px;
+}
+
+.mobile-map-section .year-map-handle-label {
+    font-size: 11px;
+}
+
+/* Roomier, finger-friendly mode toggle inside the mobile header */
+.mobile-map-title .sidebar-mode-btn {
+    font-size: var(--font-size-xs);
+    padding: 6px 12px;
+    line-height: 1.2;
+}
+
+.mobile-map-title .sidebar-reset-btn {
+    font-size: var(--font-size-xs);
+    padding: 6px 4px;
 }
 
 /* ── Active filter pills ──────────────────────────────── */
@@ -565,6 +590,16 @@
     .mobile-filters {
         display: flex;
     }
+
+    /* Comfortable tap targets for the sort dropdown + active-filter pills */
+    .timeline-filters .form-select {
+        min-height: 44px;
+    }
+
+    .filter-pill {
+        min-height: 36px;
+        padding: 6px var(--space-md);
+    }
 }
 
 @media (max-width: 600px) {
@@ -580,6 +615,30 @@
     .timeline-card-image {
         max-height: 220px;
         min-height: unset;
+    }
+
+    /* Reclaim horizontal space — tighter card padding on phones */
+    .timeline-card {
+        padding: var(--space-md);
+    }
+
+    .timeline-card-title {
+        font-size: var(--font-size-lg);
+    }
+
+    /* Keep the date and visibility badges readable when they wrap */
+    .timeline-card-header {
+        gap: var(--space-xs) var(--space-sm);
+    }
+
+    /* Footer: author on its own line, full-width edit/delete actions */
+    .timeline-card-footer {
+        flex-wrap: wrap;
+        gap: var(--space-sm);
+    }
+
+    .timeline-card-footer .btn-sm {
+        padding: 8px 14px;
     }
 }
 
