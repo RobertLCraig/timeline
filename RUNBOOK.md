@@ -90,6 +90,13 @@ done < "$FILE"
 ```
 Delete the temp file afterwards.
 
+**Idempotent bulk imports.** For re-runnable loads (e.g. the photo-import
+pipeline), include an `import_hash` (≤64 chars, stable per source item) on each
+event. A first post creates it (`201`); re-posting the same hash UPDATES that
+event (`200`) instead of duplicating — so a re-run after a crash or a data fix is
+safe. The hash is unique per `(group_id, import_hash)`, and the update is gated by
+the normal edit-ownership rule. Omit it for one-off manual events.
+
 ### List events (mind the pagination)
 The list endpoint is a Laravel paginator: events are nested under `data` and
 there is a default page size, so a plain GET looks like it is missing events.

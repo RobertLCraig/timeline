@@ -33,6 +33,7 @@ class PostTimelineEventTool extends Tool
             'social_visibility' => 'nullable|in:family,close_friends,friends,acquaintances,public,private',
             'image_url' => 'nullable|string|max:500',
             'album_url' => 'nullable|url|max:1000',
+            'import_hash' => 'nullable|string|max:64',
         ]);
 
         $group = Group::where('slug', $validated['group'])->first();
@@ -47,7 +48,9 @@ class PostTimelineEventTool extends Tool
 
         $categoryId = EventCreator::resolveCategoryId($validated['category'] ?? null, $group->id);
 
-        $event = EventCreator::create($user, $group, [
+        // Idempotent import: a repeated import_hash updates the existing event
+        // (same ownership rule as an edit) instead of creating a duplicate.
+        [$event, $created] = EventCreator::importUpsert($user, $group, [
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'event_date' => $validated['event_date'],
@@ -58,7 +61,10 @@ class PostTimelineEventTool extends Tool
             'visibility_is_override' => isset($validated['social_visibility']),
             'image_url' => $validated['image_url'] ?? null,
             'album_url' => $validated['album_url'] ?? null,
-        ], 'mcp');
+            'import_hash' => $validated['import_hash'] ?? null,
+        ], 'mcp', fn ($existing) => $existing->created_by === $user->id
+            || $group->isAdminOrOwner($user->id)
+            || $user->isSuperAdmin());
 
         return Response::json([
             'id' => $event->id,
@@ -69,7 +75,7 @@ class PostTimelineEventTool extends Tool
             'visibility' => $event->visibility,
             'social_visibility' => $event->social_visibility,
             'url' => url("/g/{$group->slug}"),
-            'message' => 'Event created.',
+            'message' => $created ? 'Event created.' : 'Event updated (matched import_hash).',
         ]);
     }
 
@@ -100,6 +106,8 @@ class PostTimelineEventTool extends Tool
                 ->description('Optional image URL or upload path.'),
             'album_url' => $schema->string()
                 ->description('Optional URL to a full photo album.'),
+            'import_hash' => $schema->string()
+                ->description('Optional idempotency key (max 64 chars) for bulk imports. Re-posting with the same import_hash updates the matching event instead of creating a duplicate.'),
         ];
     }
 }

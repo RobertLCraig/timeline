@@ -46,6 +46,7 @@ class Event extends Model
         'image_url',
         'album_url',
         'source',
+        'import_hash',
     ];
 
     protected function casts(): array

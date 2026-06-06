@@ -151,11 +151,25 @@ class EventController extends Controller
             'visibility_is_override' => 'sometimes|boolean',
             'image_url' => 'nullable|string|max:500',
             'album_url' => 'nullable|url|max:1000',
+            'import_hash' => 'sometimes|nullable|string|max:64',
         ]);
 
-        $event = EventCreator::create($request->user(), $group, $validated, $this->requestSource($request));
+        $user = $request->user();
 
-        return response()->json(['event' => $event], 201);
+        // Idempotent import: a repeated import_hash updates the existing event
+        // (subject to the same ownership rule as a normal edit) instead of
+        // creating a duplicate, so the photo-import pipeline can be re-run.
+        [$event, $created] = EventCreator::importUpsert(
+            $user,
+            $group,
+            $validated,
+            $this->requestSource($request),
+            fn (Event $existing) => $existing->created_by === $user->id
+                || $group->isAdminOrOwner($user->id)
+                || $user->isSuperAdmin(),
+        );
+
+        return response()->json(['event' => $event], $created ? 201 : 200);
     }
 
     /**

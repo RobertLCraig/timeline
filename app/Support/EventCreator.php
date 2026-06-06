@@ -118,11 +118,49 @@ class EventCreator
             'image_url' => $data['image_url'] ?? null,
             'album_url' => $data['album_url'] ?? null,
             'source' => $source,
+            'import_hash' => $data['import_hash'] ?? null,
         ]);
 
         $event->load(['category', 'creator:id,name,avatar_url']);
 
         return $event;
+    }
+
+    /**
+     * Idempotent import. When $data carries an 'import_hash' that already maps
+     * to an event in this group, update that event; otherwise create a new one.
+     * This lets a bulk importer be re-run safely without duplicating events.
+     *
+     * Returns [Event $event, bool $created]. Callers must have already checked
+     * group membership / the events:write ability. When an existing event is
+     * matched, $authorizer (if given) is asked whether $user may edit it — the
+     * same ownership rule used by the REST/MCP update paths — and a
+     * ValidationException is thrown if not, so one member cannot overwrite
+     * another's imported event.
+     *
+     * @param  callable(Event):bool|null  $authorizer
+     */
+    public static function importUpsert(User $user, Group $group, array $data, string $source, ?callable $authorizer = null): array
+    {
+        $hash = $data['import_hash'] ?? null;
+
+        if ($hash !== null && trim($hash) !== '') {
+            $existing = Event::where('group_id', $group->id)
+                ->where('import_hash', $hash)
+                ->first();
+
+            if ($existing) {
+                if ($authorizer && ! $authorizer($existing)) {
+                    throw ValidationException::withMessages([
+                        'import_hash' => 'An event with this import_hash exists but you do not have permission to update it.',
+                    ]);
+                }
+
+                return [self::applyUpdate($existing, $user, $data), false];
+            }
+        }
+
+        return [self::create($user, $group, $data, $source), true];
     }
 
     /**
