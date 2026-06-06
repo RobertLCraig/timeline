@@ -7,6 +7,12 @@ authenticated by the **same personal access token**:
 1. **REST API** — any HTTP client. Universal, no dependencies.
 2. **MCP server** — a native `post_timeline_event` tool for MCP-capable agents.
 
+> **Looking for copy-paste recipes?** See **RUNBOOK.md** for the verified,
+> operational version of this guide: real curl flows (load token, bulk-load from
+> NDJSON, list with pagination, edit/delete), the MCP tool sequence, and the
+> gotchas that cost time (BOM in the secrets file, paginator wrapper, id
+> extraction). This file is the reference spec; the runbook is the field manual.
+
 ---
 
 ## 1. Get a token
