@@ -1,0 +1,17 @@
+# Virtualenv and logs — never commit
+.venv/
+*.log
+
+# Generated / personal data — do NOT commit (photo metadata, face crops, big HTML)
+out/
+
+# Sensitive personal data — face embeddings, relationship timeline, face labels
+registry.json
+registry_*.json
+partners.json
+people.json
+prefill.json
+
+# OS cruft
+__pycache__/
+*.pyc
