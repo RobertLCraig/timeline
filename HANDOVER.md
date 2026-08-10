@@ -269,10 +269,17 @@ NSFW_CHECKS_ENABLED=true
 
 ---
 
-## Future Improvements
+## Work in flight
 
-- **Email notifications** — invite codes sent by email rather than shared manually.
-- **Real-time comments** — live commenting on events.
-- **Multi-image galleries** — multiple uploads per event.
-- **Export / import** — download or migrate an entire timeline.
-- **Mobile app** — React Native wrapper using the existing API.
+The queue is [docs/board/todo/](docs/board/todo/) and what waits on a person is
+[docs/board/human-review/](docs/board/human-review/).
+
+The five improvements this section used to list are one card, `0004`, because a flat wishlist with
+no order and no acceptance is not a queue: nothing in it can be finished or dropped, so it survives
+forever. Picking one turns it into work.
+
+**The "Planned: Content Moderation (Phase 4)" section above is stale and card 0002 owes its
+rewrite.** Four of its five parts shipped in February: the Sightengine call in `UploadController`,
+the `app_settings` and `upload_flags` tables, and the admin review queue behind
+`AdminController::uploadFlags`. Only the client-side pre-scan is genuinely outstanding, and that is
+card 0001.
