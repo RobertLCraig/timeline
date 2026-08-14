@@ -1,7 +1,9 @@
 # Verify moderation end to end against a real Sightengine account
 
 ## What I need from you
-Three steps, each with its own expected result:
+
+**Configure a real Sightengine account and prove the moderation path end to end.** Three steps, each
+with its own expected result:
 
 1. Create a Sightengine account and put `SIGHTENGINE_API_USER` and `SIGHTENGINE_API_SECRET` in the
    server `.env`, then set `nsfw_checks_enabled` to `1` in Admin settings. Pass: the settings page
@@ -12,8 +14,17 @@ Three steps, each with its own expected result:
    appears in Flagged Uploads with a score. Then click Quarantine. Pass: the event's `image_url`
    is nulled and the file has moved to `storage/quarantine/`.
 
-An agent cannot do it: step 1 needs an account signup and a credential that must not enter the
-repository, and steps 2 and 3 need a judgement about what a real photo of your family is.
+**Pass** is all three steps, plus criterion #4: break the credentials on purpose and confirm the
+upload still succeeds with a warning in the log.
+
+**Fail** at step 2 means the threshold is set too low to be usable, which is a config change rather
+than a defect. Say the score you saw.
+
+**Why it needs you** Step 1 needs an account signup and a credential that must not enter the
+repository, and steps 2 and 3 need your judgement about what an ordinary family photo is. The
+failure path is the reason this cannot wait: `UploadController` catches a Sightengine error, logs a
+warning and lets the upload through, which is correct behaviour and also the behaviour that makes a
+permanently broken integration invisible.
 
 ## Why
 The scan path, the flag table and the review queue have been in the code since February and there

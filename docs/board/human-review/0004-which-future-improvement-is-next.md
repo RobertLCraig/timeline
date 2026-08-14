@@ -1,11 +1,21 @@
 # Which of the five future improvements is next
 
 ## What I need from you
-Pick one of the five, or say "none, the app is finished". It decides what gets built after the
-moderation work closes, and it needs you because the input is how the family actually uses the
-timeline, which is not in the repository.
 
-If you have no strong view, say "1" and it gets built next.
+**Pick one of the five below, or say "none, the app is finished".** It decides what gets built once
+the moderation work closes.
+
+My recommendation is **1**, with **4** next and worth arguing for first.
+
+**Pass** is a number in this card. If you have no strong view, say **1** and it gets built next.
+
+**Fail** is leaving all five on the list. That is what the handover did, and a flat wishlist with no
+order and no acceptance survives forever because nothing in it can ever be finished or dropped.
+Saying no to 5 explicitly is as much of an answer as choosing one.
+
+**Why it needs you** The input is how the family actually uses the timeline, and that is not in the
+repository. Whether sharing invite codes by hand is a real friction or a non-issue is the whole of
+option 1's case, and only you know.
 
 ## Why
 The handover carries five "Future Improvements" as a flat list with no order and no acceptance,
