@@ -48,3 +48,6 @@ Option 5 is the one to say no to explicitly rather than leave on a list, because
 wrapper is a second product and the API it would wrap is already usable from a phone browser.
 
 ## Decided
+
+
+**2026-08-18** Multi-image galleries > Email notifications for invite codes > Real-time comments > Export and import > Mobile app
