@@ -1,5 +1,7 @@
 # Family Timeline — Technical Handover
 
+**Category:** site
+
 This document is the technical reference for anyone picking up development on the Family Timeline project.
 
 ---
