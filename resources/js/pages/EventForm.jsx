@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
+import { scanImageFile } from '../lib/nsfwScan';
 
 const TIER_LABELS = {
     family:        { emoji: '👨‍👩‍👧‍👦', label: 'Family',        desc: 'Only family members' },
@@ -33,6 +34,7 @@ export default function EventForm() {
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState('');
     const [error, setError] = useState('');
+    const [scanning, setScanning] = useState(false);
     const [loading, setLoading] = useState(false);
     const [pageLoading, setPageLoading] = useState(isEdit);
 
@@ -97,12 +99,27 @@ export default function EventForm() {
         }
     };
 
-    const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setImageFile(file);
-            setImagePreview(URL.createObjectURL(file));
+    const handleImageChange = async (e) => {
+        const input = e.target;
+        const file = input.files[0];
+        if (!file) return;
+
+        // Pre-scan in the browser before anything is sent. A blocked picture is
+        // never uploaded; a scan that cannot run allows it and the server-side
+        // scan still has the last word.
+        setError('');
+        setScanning(true);
+        const blocked = await scanImageFile(file);
+        setScanning(false);
+
+        if (blocked) {
+            input.value = ''; // so picking the same file again still fires change
+            setError(`That photo looks like adult content (${blocked}) and was not uploaded. Please choose another.`);
+            return;
         }
+
+        setImageFile(file);
+        setImagePreview(URL.createObjectURL(file));
     };
 
     const handleSubmit = async (e) => {
@@ -296,7 +313,8 @@ export default function EventForm() {
                         <div className="form-group">
                             <label className="form-label">Photo</label>
                             <input type="file" accept="image/*" onChange={handleImageChange}
-                                className="form-input" style={{ padding: '8px' }} />
+                                className="form-input" style={{ padding: '8px' }} disabled={scanning} />
+                            {scanning && <span className="form-hint">Checking this photo…</span>}
                             {imagePreview && (
                                 <div style={{ marginTop: 'var(--space-sm)', borderRadius: 'var(--border-radius-sm)', overflow: 'hidden', maxHeight: '200px' }}>
                                     <img src={imagePreview} alt="Preview" style={{ width: '100%', objectFit: 'cover' }} />
@@ -313,7 +331,7 @@ export default function EventForm() {
                         </div>
 
                         <div className="flex gap-md mt-lg">
-                            <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
+                            <button type="submit" className="btn btn-primary btn-lg" disabled={loading || scanning}>
                                 {loading ? 'Saving...' : (isEdit ? 'Save Changes' : 'Create Event')}
                             </button>
                             <button type="button" className="btn btn-secondary btn-lg" onClick={() => navigate(`/g/${slug}`)}>

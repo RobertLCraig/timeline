@@ -4,9 +4,12 @@
     "scripts": {
         "dev": "vite",
         "prebuild": "node -e \"const fs=require('fs'); try{fs.unlinkSync('public/hot')}catch(e){}\"",
-        "build": "vite build"
+        "build": "vite build",
+        "test:js": "node --test \"resources/js/**/*.test.js\""
     },
     "dependencies": {
+        "@tensorflow/tfjs": "^4.22.0",
+        "nsfwjs": "^4.3.0",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
         "react-router-dom": "^7.13.0"

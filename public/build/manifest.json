@@ -1,14 +1,66 @@
 {
+  "__commonjs-dynamic-modules-TDtrdbi3.js": {
+    "file": "assets/_commonjs-dynamic-modules-TDtrdbi3.js",
+    "name": "_commonjs-dynamic-modules"
+  },
+  "__commonjsHelpers-gnU0ypJ3.js": {
+    "file": "assets/_commonjsHelpers-gnU0ypJ3.js",
+    "name": "_commonjsHelpers"
+  },
+  "_group1-shard1of1.min-xajHB28d.js": {
+    "file": "assets/group1-shard1of1.min-xajHB28d.js",
+    "name": "group1-shard1of1.min",
+    "isDynamicEntry": true,
+    "imports": [
+      "__commonjsHelpers-gnU0ypJ3.js",
+      "__commonjs-dynamic-modules-TDtrdbi3.js"
+    ]
+  },
+  "_model.min-BfVJVTg7.js": {
+    "file": "assets/model.min-BfVJVTg7.js",
+    "name": "model.min",
+    "isDynamicEntry": true,
+    "imports": [
+      "__commonjsHelpers-gnU0ypJ3.js",
+      "__commonjs-dynamic-modules-TDtrdbi3.js"
+    ]
+  },
+  "node_modules/nsfwjs/dist/esm/core.js": {
+    "file": "assets/core-B-vT4Alv.js",
+    "name": "core",
+    "src": "node_modules/nsfwjs/dist/esm/core.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "__commonjsHelpers-gnU0ypJ3.js"
+    ]
+  },
+  "node_modules/nsfwjs/dist/esm/models/mobilenet_v2.js": {
+    "file": "assets/mobilenet_v2-BDbuyLc4.js",
+    "name": "mobilenet_v2",
+    "src": "node_modules/nsfwjs/dist/esm/models/mobilenet_v2.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/main.jsx"
+    ],
+    "dynamicImports": [
+      "_model.min-BfVJVTg7.js",
+      "_group1-shard1of1.min-xajHB28d.js"
+    ]
+  },
   "resources/js/index.css": {
     "file": "assets/index-BR9ROz1g.css",
     "src": "resources/js/index.css",
     "isEntry": true
   },
   "resources/js/main.jsx": {
-    "file": "assets/main-DnnjB1li.js",
+    "file": "assets/main-C9sZvmFV.js",
     "name": "main",
     "src": "resources/js/main.jsx",
     "isEntry": true,
+    "dynamicImports": [
+      "node_modules/nsfwjs/dist/esm/core.js",
+      "node_modules/nsfwjs/dist/esm/models/mobilenet_v2.js"
+    ],
     "css": [
       "assets/main-BdANK-q7.css"
     ]
