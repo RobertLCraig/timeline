@@ -232,42 +232,90 @@ npm run build
 
 ---
 
-## Planned: Content Moderation (Phase 4)
+## Content Moderation
 
-### Architecture decision — server-side scan
-**Sightengine API** (not NudeNet self-hosted) is chosen for server-side nudity detection:
-- NudeNet requires Python 3.8+, a process manager, and significant CPU/RAM — incompatible with Hostinger shared hosting.
-- Sightengine is a REST API call from PHP: `POST https://api.sightengine.com/1.0/check.json`. Free tier: 500 images/month. Scales cheaply.
-- On VPS/cloud: the `ScanUploadForContent` job can be swapped to call a self-hosted HTTP microservice instead of Sightengine — no other code changes required.
+Shipped in February. The server scans every upload, two admin tabs control and review it, and the
+scan is off out of the box because the setting seeds to `0` and there are no credentials.
 
-### Admin-configurable NSFW settings
-Super-admins can configure moderation from the Admin Panel:
+### Server-side scan — `app/Http/Controllers/UploadController.php`
 
-| Setting | Description |
-|---|---|
-| `nsfw_checks_enabled` | Toggle all content moderation on/off |
-| `nudity_threshold` | Sightengine nudity score (0–1) above which an upload is flagged |
+`POST /api/upload` saves the file to `public/uploads/` first, then scans it in the same request —
+there is no queued job. `scanEnabled()` requires **both** the `nsfw_checks_enabled` setting at `1`
+and `config('services.sightengine.user')` and `.secret` to be set, so an unconfigured install skips
+the scan silently.
 
-These settings are stored in an `app_settings` table (key/value, super-admin-only writes) and cached.
+The scan is one multipart call to `https://api.sightengine.com/1.0/check.json` with `models=nudity-2.0`
+(no publicly reachable URL needed). `topScore()` takes the highest of `sexual_activity`,
+`sexual_display`, `erotica` and `very_suggestive` from the response and compares it to the
+`nudity_threshold` setting. At or above it, an `upload_flags` row is written with status `pending`.
 
-### Verification queue
-Flagged uploads appear in an **Admin → Flagged Uploads** tab:
-- Each flag shows image preview, filename, score, and timestamp.
-- Actions: **Approve** (image goes live) or **Quarantine** (image removed from event, file moved to `storage/quarantine/`).
-- Quarantined events have `image_url` nullified; the uploader is not notified automatically (no email yet).
+The response is `{ url, filename, flagged, flag_id }`. **A flagged upload still succeeds** — the file
+is served and the event keeps it; the flag is only a review item. If Sightengine errors or is
+unreachable the exception is caught, a `Sightengine scan failed` warning is logged, and the upload
+succeeds unflagged.
 
-### Client-side pre-scan (NSFWJS)
-Before the image reaches the server, the browser runs `@tensorflow-models/nsfwjs` to classify it.
-Uploads are blocked client-side if the score for `Porn`, `Hentai`, or `Sexy` exceeds 0.7.
-This reduces server load and gives immediate feedback to the user.
+Sightengine was chosen over self-hosted NudeNet because Hostinger shared hosting has no Python
+runtime or process manager. On a VPS the call in `callSightengine()` can point at a self-hosted
+service instead; nothing else changes.
 
-### Environment variables (add to `.env`)
+### Settings table — `app_settings`
+
+Key/value store. Migration `database/migrations/2026_02_25_000700_create_app_settings_table.php`,
+model `app/Models/AppSetting.php` (`AppSetting::get()` / `::set()`, **no cache** — every read is a
+query). The migration seeds the two rows below; both are read straight from the table, not from the
+environment.
+
+| Setting | Seeded | Meaning |
+|---|---|---|
+| `nsfw_checks_enabled` | `0` | Master switch for the **server-side** scan |
+| `nudity_threshold` | `0.6` | Score at or above which an upload is flagged |
+
+Super-admins edit them in the **⚙️ NSFW Settings** tab (`NsfwSettingsTab` in
+`resources/js/pages/AdminPanel.jsx`) over `GET`/`PUT /api/admin/settings`
+(`AdminController::getSettings` / `updateSettings`). Writes are validated against a fixed key list
+and recorded in `audit_logs` as `admin.settings_updated`.
+
+### Flag table — `upload_flags`
+
+Migration `database/migrations/2026_02_25_000800_create_upload_flags_table.php`, model
+`app/Models/UploadFlag.php`. Columns: `filename`, `url`, `uploader_user_id`, `scores` (the raw
+Sightengine nudity block, cast to array), `top_score`, `status` (`pending`/`approved`/`quarantined`),
+`reviewed_by`, `reviewed_at`, `created_at`. There is no `updated_at`.
+
+### Admin review queue
+
+`GET /api/admin/upload-flags?status=…` (`AdminController::uploadFlags`, paginated 20 with uploader
+and reviewer eager-loaded) and `PUT /api/admin/upload-flags/{id}` (`AdminController::reviewFlag`).
+The UI is the **🚩 Content Flags** tab (`ContentFlagsTab` in `resources/js/pages/AdminPanel.jsx`):
+pending/approved/quarantined filter, image preview, score, uploader, and Approve / Quarantine
+buttons. Each decision writes an `upload_flag.approved` / `upload_flag.quarantined` audit log entry.
+
+> **Both decisions are bookkeeping only.** `reviewFlag()` sets `status`, `reviewed_by` and
+> `reviewed_at` and nothing else. Quarantine does **not** null the event's `image_url`, does not
+> delete the file, and does not move it to `storage/quarantine/` — the image stays live at its
+> `public/uploads/` URL. Nobody is emailed either way.
+
+Nor has any of this been run against a real Sightengine account, so the scan, the threshold and the
+failure path are as-written rather than as-observed. That check is a card on the board, not a code
+change.
+
+### Environment
+
+Only two variables are read, both via `config/services.php` → `services.sightengine`:
+
 ```
 SIGHTENGINE_API_USER=
 SIGHTENGINE_API_SECRET=
-SIGHTENGINE_NUDITY_THRESHOLD=0.7
-NSFW_CHECKS_ENABLED=true
 ```
+
+`.env.example` also carries `SIGHTENGINE_NUDITY_THRESHOLD` and `NSFW_CHECKS_ENABLED`. **Nothing reads
+them** — those two controls live in `app_settings` (above) and setting them in `.env` does nothing.
+
+### Not settled: the client-side pre-scan
+
+The browser pre-scan (`resources/js/lib/nsfwScan.js`, called from `EventForm.jsx`) is built but has
+not passed review. It is card `0001` in [docs/board/human-review/](docs/board/human-review/) — read
+the card for its design and its open findings rather than trusting a summary here.
 
 ---
 
@@ -280,8 +328,6 @@ The five improvements this section used to list are one card, `0004`, because a 
 no order and no acceptance is not a queue: nothing in it can be finished or dropped, so it survives
 forever. Picking one turns it into work.
 
-**The "Planned: Content Moderation (Phase 4)" section above is stale and card 0002 owes its
-rewrite.** Four of its five parts shipped in February: the Sightengine call in `UploadController`,
-the `app_settings` and `upload_flags` tables, and the admin review queue behind
-`AdminController::uploadFlags`. Only the client-side pre-scan is genuinely outstanding, and that is
-card 0001.
+Content moderation is described above as what it is, not as a plan. Two things about it are open and
+both are cards, not paragraphs: the client-side pre-scan is card `0001`, and proving the server scan
+against a real Sightengine account is card `0003`.
