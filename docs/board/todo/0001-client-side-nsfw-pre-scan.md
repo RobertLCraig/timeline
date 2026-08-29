@@ -129,3 +129,48 @@ worktree without `nsfwjs`, so `npm ci` is needed before `npm run build` will wor
 
 Still true and still not mine: `HANDOVER.md` describes this as planned and names the wrong package.
 Card `0002` owns it.
+
+### 2026-08-29 review (v20260829154247-d3e8)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 22s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+All three criteria trace to real code.
+
+**1 ÔÇö Block over 0.7, say why, send nothing.** `blockedClass()` in `resources/js/lib/nsfwScan.js` returns the first of `Porn`/`Hentai`/`Sexy` with `probability > NSFW_THRESHOLD` (0.7). `handleImageChange()` in `resources/js/pages/EventForm.jsx` awaits `scanImageFile()`, and on a hit sets the error naming the class and returns **without** setting `imageFile`. `handleSubmit()` only calls `api.post('/upload', ...)` when `imageFile` is set, so nothing is sent. Submit and the file input are disabled while `scanning` is true, closing the fast-click race.
+
+**2 ÔÇö Under threshold uploads, server still scans.** `handleSubmit()` posts as before. `store()` in `app/Http/Controllers/UploadController.php` still runs `scanEnabled()` ÔåÆ `callSightengine()`. `test_an_allowed_upload_is_still_scanned_server_side()` in `tests/Feature/UploadScanTest.php` asserts the Sightengine call is sent.
+
+**3 ÔÇö Model load failure allows the upload.** `scanImageFile()` catches everything and returns `null`; `loadModel()` nulls `modelPromise` on rejection so one failure is not cached.
+
+I also checked the committed bundle, not just the source: `public/build/assets/main-C9sZvmFV.js` (the file `manifest.json` points at) contains `.7` and `["Porn","Hentai","Sexy"]`, plus the 3.5 MB weights chunk. `EventForm.jsx` is the only `/upload` caller in the SPA.
+
+VERDICT: sound
+
+**scope: sound**
+
+I tried to find scope creep and could not find a blocking one.
+
+**Production diff is exactly the card.** Two commits touch only: `resources/js/lib/nsfwScan.js`, `resources/js/lib/nsfwScan.test.js`, `EventForm.jsx` (`handleImageChange`, `handleSubmit`), `package.json`, `package-lock.json`, the built assets, and `tests/Feature/UploadScanTest.php`. Nothing in `app/`, `routes/`, `config/` or `database/`. The fenced things ÔÇö the Sightengine call in `UploadController`, the `nudity_threshold` setting, the flag review queue ÔÇö are unchanged.
+
+**The fence held in the other direction too.** `HANDOVER.md` still names the wrong package and calls the pre-scan planned. Card `0002` owns that, and `0002` says "Not this card: Building the pre-scan." Correct on both sides.
+
+**One growth, noted not blocking.** `UploadScanTest::test_an_image_over_the_threshold_is_flagged_for_review` asserts `UploadFlag` and `top_score`, which is review-queue behaviour. It changes nothing and reads as the second half of acceptance criterion 2 ("a filter and never the only one"), so I let it stand.
+
+**Nothing half done.** `EventForm.jsx` is the only caller of `/upload` in `resources/js`; there is no second unscanned picker. The shipped bundle carries `.7`, so the 0.02 test value was really restored.
+
+VERDICT: sound
+
+**breakage: defect**
+
+**1. The admin kill switch no longer kills everything.** `UploadController::scanEnabled()` gates the server scan on `nsfw_checks_enabled`. `handleImageChange` in `resources/js/pages/EventForm.jsx` checks nothing. Turn moderation off in the admin panel and the browser still blocks photos, and still pulls ~5.5 MB of model. `HANDOVER.md` calls that setting "Toggle all content moderation on/off" ÔÇö this change made that line false.
+
+**2. The client refuses where the server only flags.** `UploadController::store` returns 201, keeps the file, and queues an `UploadFlag` for review. `handleImageChange` is a dead end: no override, no route to that review queue. A false positive cannot be uploaded at all, so the reviewer never sees it. Two different rules for the same judgement.
+
+**3. Task 3 is not proved.** The test "allows the upload when the scan cannot run at all" in `resources/js/lib/nsfwScan.test.js` fails inside `decode`, before `loadModel` is ever called. The model-load failure path is untested. `loadModel` in `resources/js/lib/nsfwScan.js` also has no timeout, and `handleImageChange` disables Submit and the file input for the whole scan ÔÇö a stalled fetch of the 3.5 MB weights leaves the form disabled with no way out.
+
+VERDICT: defect
+
