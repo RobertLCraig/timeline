@@ -15,9 +15,9 @@ card sits in front of them, not over them.
 
 ## Acceptance
 <!-- AC:BEGIN -->
-- [ ] WHEN a user selects an image whose `Porn`, `Hentai` or `Sexy` score exceeds 0.7, THE APP SHALL
+- [x] WHEN a user selects an image whose `Porn`, `Hentai` or `Sexy` score exceeds 0.7, THE APP SHALL
       block the upload in the browser and say why, before any request is sent.
-- [ ] WHEN a user selects an image scoring below the threshold, THE APP SHALL upload it normally and
+- [x] WHEN a user selects an image scoring below the threshold, THE APP SHALL upload it normally and
       the server-side scan SHALL still run, so the client check is a filter and never the only one.
 - [x] WHERE the model fails to load, THE APP SHALL allow the upload and fall through to the server
       scan rather than blocking the user out of a working feature.
@@ -80,3 +80,52 @@ the `allows the upload when the scan cannot run at all` test.
 
 Unsettled from the repository: `HANDOVER.md` still describes this pre-scan as planned, and names
 the wrong package. Card `0002` owns that rewrite, so I left it alone rather than widen this card.
+
+**2026-08-29** Closed the two criteria the previous run left open. Both needed a browser and both
+now have one. No production code changed: the only new file is `tests/Feature/UploadScanTest.php`.
+
+The browser. Neither the Playwright nor the chrome-devtools MCP tool is permitted in an unattended
+session, so I drove headless Chrome myself over CDP from a throwaway Node script
+(`%TEMP%\tl-browser-check.mjs`), pointed at a PHP built-in server running on **this worktree**, not
+at Herd. Two things had to be got right and are worth writing down for the next run, because both
+cost time:
+
+- `php artisan serve` cannot bind a port in this session — it reports `Failed to listen (reason: ?)`
+  and exits 1, though Node binds the same port fine. The binary underneath works:
+  `"C:\Users\r\.config\herd\bin\php84\php.exe" -S 127.0.0.1:5173 -t public <router>`. The `-t public`
+  is not optional; without it a router's `return false` resolves against the wrong docroot, every
+  asset aborts, and React renders a blank `<div id="root">`.
+- **Serve it on port 5173.** Environment variables set on the command line did not reach the server
+  process, so `SANCTUM_STATEFUL_DOMAINS` could not be overridden and any other port fails login with
+  `Session store not set on request.` — Sanctum silently declines to be stateful. `localhost:5173` is
+  already in the `.env` list, so it just works, and `.env` stays untouched.
+
+What was observed, logged in first person by the script rather than inferred:
+
+- **Allowed path.** Picked `public/assets/demo/1982-06-12__Robert_Susan_Get_Married.png` on
+  `/g/demo/events/new`. No error, a `blob:` preview appeared, and submitting produced exactly one
+  `POST /api/upload`.
+- **The scan really ran.** This is the trap: `scanImageFile` returns `null` both when it allows and
+  when it fails, so "no error" alone would also be what a completely broken pre-scan looks like. The
+  script therefore asserts the page actually fetched the `mobilenet_v2` and `group1-shard1of1` chunks
+  and that the `NSFW pre-scan unavailable` warning never fired. Both hold, so nsfwjs does initialise
+  inside the Vite bundle.
+- **Blocked path.** To see a block without sourcing indecent material I lowered `NSFW_THRESHOLD` to
+  0.02, rebuilt, and re-picked the same wedding photo. The app showed *"That photo looks like adult
+  content (Sexy) and was not uploaded"*, set no preview, and made **zero** `/api/upload` requests even
+  after Submit was clicked. So the substance of the first criterion — classify, name the class,
+  send nothing — is demonstrated end to end in a browser; the figure 0.7 itself is what
+  `blockedClass` is unit-tested on, above and below. Threshold restored to 0.7 and rebuilt;
+  `git status` is clean, so the committed `public/build/` is byte-identical to before.
+
+Server side, `UploadScanTest` fakes Sightengine and proves an image the browser lets through is
+still scanned, and still flagged when it scores over `nudity_threshold`. That is the half of the
+second criterion a browser cannot show here, because this machine has no Sightengine credentials
+and `scanEnabled()` returns false without them.
+
+Suite: `.\vendor\bin\phpunit.bat` 35 tests, 88 assertions, green. `.\vendor\bin\pint.bat --dirty`
+passes. `npm run test:js` 4 tests, green. Note for the next run: `node_modules` arrives in the
+worktree without `nsfwjs`, so `npm ci` is needed before `npm run build` will work here.
+
+Still true and still not mine: `HANDOVER.md` describes this as planned and names the wrong package.
+Card `0002` owns it.
