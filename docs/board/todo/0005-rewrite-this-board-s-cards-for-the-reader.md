@@ -157,3 +157,50 @@ person's decision, not a rewrite's - so I left it and am flagging it here instea
 **Not checked in a browser, and it does not need to be.** This is a documentation change: four
 markdown files under `docs/board/`, no code. Suite and style were still run from this worktree and
 both are green; the numbers are in the commit.
+
+### 2026-08-29 review (v20260829181007-2f2a)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 1s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+**#1** ÔÇö traced. `## Why` in `human-review/0001-client-side-nsfw-pre-scan.md`, `0002-reconcile-the-phase-4-section.md`, `0003-verify-moderation-against-real-sightengine.md`, `0004-which-future-improvement-is-next.md`: each opens with what is wrong, then cost, then history, and names no fix. `docs/board/README.md` ┬º"`## Why` is the PROBLEM" scopes the rule to the section ("No solution appears in `## Why`"), and ┬º"The one section a card in `human-review/` must have" mandates `## What I need from you` under the title. The builder's reading is the README's own, so the ask sitting above `## Why` on 0003/0004 is not a failure.
+
+**#2** ÔÇö traced. `0004` ┬º"What I need from you", `**Why it needs you**`, names **local knowledge nobody wrote down**. It is the only card with `## Options`.
+
+**#3** ÔÇö traced. Four new `## Links` sections, each `**Relates to**` with a reason line. Remaining bare numbers sit only in `## Comments`, which the README makes append-only.
+
+**#4** ÔÇö vacuous and true: no `needs:` and no `Blocked by` exists on this board.
+
+**#5** ÔÇö traced by diff `aba0abc`: only `## Why`, `## Links`, `## Not this card` changed. `0004` ┬º`## Decided` untouched.
+
+**#6** ÔÇö I ran `board:convention --path=$PWD --cards`: `timeline 0 5 0006`.
+
+VERDICT: sound
+
+**scope: defect**
+
+**Scope grew ÔÇö card `0003`.** In `docs/board/human-review/0003-verify-moderation-against-real-sightengine.md`, section `## Links`, the new `0002` entry states that quarantine does not touch the image, and that "criterion #3 below is expected to fail as written". That fact lived on `0002`'s comment thread, not on `0003`. Card `0005`, section `## Not this card`, fences a rewrite to "keeps everything the card knows and changes only how it is ordered and said". This is new knowledge, imported.
+
+**And it stopped half way.** In the same file, `## What I need from you`, step 3 still tells the person "Pass: the event's `image_url` is nulled and the file has moved to `storage/quarantine/`", and `## Acceptance` criterion #3 still says the same. The card now gives the reader two opposite answers about one step. That is the round trip this board exists to remove.
+
+**It was not declared.** `docs/board/ai-review/0005-rewrite-this-board-s-cards-for-the-reader.md`, section `## Comments`, says only that nothing was dropped. It never says anything was added.
+
+The `no_outward_effect:` key on `0001` is not a finding: `docs/board/README.md`, section "A confirmed false positive is recorded, not argued with", sanctions exactly that use.
+
+VERDICT: defect
+
+**breakage: defect**
+
+Checked `board:convention --path="C:\Dev\timeline" --cards`: it prints `0` failing of `5`. The structural checks pass. The prose the rewrite added does not.
+
+**1. `docs/board/human-review/0001-client-side-nsfw-pre-scan.md`, `## Why`.** It now says, in present tense, that every picture is uploaded before anything looks at it, and that "the check in the browser was never built". Both are false. `package.json` carries `nsfwjs` 4.3.0, `resources/js/lib/nsfwScan.js` exists, and `EventForm.jsx`'s `handleImageChange` blocks the file before upload. The same card's own `## Comments` says so twice. The rewrite time-stamped the package clause ("When this card was writtenÔÇª") and left the headline claim untimed, so the card's problem statement contradicts its own thread.
+
+**2. Same file, `## Links` ÔåÆ `0002`.** The reason given is that `HANDOVER.md` "describes this pre-scan as planned and names a package that does not exist on npm". `HANDOVER.md` ┬º"Not settled: the client-side pre-scan" already says it "is built" and names `nsfwScan.js`. That link was untrue when written.
+
+**3. `docs/board/human-review/0003-verify-moderation-against-real-sightengine.md`.** The new `## Links` says criterion #3 will fail. `## What I need from you`, step 3, still tells the reader "Pass: `image_url` is nulled and the file has moved to `storage/quarantine/`". `AdminController::reviewFlag` does neither. The person does the work to learn what the card already knows.
+
+VERDICT: defect
+
