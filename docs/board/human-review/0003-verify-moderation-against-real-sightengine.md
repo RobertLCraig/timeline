@@ -27,14 +27,28 @@ warning and lets the upload through, which is correct behaviour and also the beh
 permanently broken integration invisible.
 
 ## Why
-The scan path, the flag table and the review queue have been in the code since February and there
-is no evidence any of it has run against the live API. The one branch that certainly has not been
-exercised is the failure path: `UploadController` catches a Sightengine error, logs a warning and
-lets the upload through, which is the right behaviour and also the behaviour that makes a
-permanently broken integration invisible.
+**Nothing here has ever talked to Sightengine.** The scan path, the flag table and the review queue
+have been in the code since February, and there is no evidence in the repository that any of it has
+run against the live API. Every test fakes the call.
+
+**What it costs.** A broken integration would look exactly like a working one. `UploadController`
+catches a Sightengine error, logs a warning and lets the upload through - the right behaviour, and
+also the behaviour that hides a permanently broken integration for as long as nobody reads the log.
+
+**How it came to be this way.** The code was written without an account to test it against, and no
+account has been created since.
+
+## Links
+
+**Relates to**
+- `0001` - the browser-side check that sits in front of this server scan. It changes what reaches
+  the scan, so a change there changes what this verification is measuring.
+- `0002` - rewrote the handover's moderation section, and recorded there that quarantine does not
+  touch the image. That is why criterion #3 below is expected to fail as written.
 
 ## Not this card
-The client-side pre-scan, which is card 0001. This is about what the server already does.
+The client-side pre-scan, which is card `0001`, linked above. This is about what the server already
+does.
 
 ## Acceptance
 <!-- AC:BEGIN -->

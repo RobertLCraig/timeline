@@ -13,21 +13,34 @@ My recommendation is **1**, with **4** next and worth arguing for first.
 order and no acceptance survives forever because nothing in it can ever be finished or dropped.
 Saying no to 5 explicitly is as much of an answer as choosing one.
 
-**Why it needs you** The input is how the family actually uses the timeline, and that is not in the
-repository. Whether sharing invite codes by hand is a real friction or a non-issue is the whole of
-option 1's case, and only you know.
+**Why it needs you** This is yours because of **local knowledge nobody wrote down**. The input is
+how the family actually uses the timeline, and that is not in the repository. Whether sharing invite
+codes by hand is a real friction or a non-issue is the whole of option 1's case, and only you know.
+No amount of reading settles it, so it is not an agent's to apply.
 
 ## Why
-The handover carries five "Future Improvements" as a flat list with no order and no acceptance,
-which is a wishlist rather than a queue. A list like that survives indefinitely because nothing in
-it can ever be finished or dropped. Making it one decision turns it into work.
+**Nothing on this project can be picked up next, because five things are equally next.** The
+handover carries five "Future Improvements" as a flat list with no order and no acceptance, which is
+a wishlist rather than a queue.
+
+**What it costs.** A list like that survives indefinitely: nothing in it can ever be finished or
+dropped, so it stays on the page for ever while nothing on it gets built.
+
+**How it came to be this way.** The five were written down as ideas as they came up, and no one
+ever went back to rank them or say what "done" would mean for any of them.
+
+## Links
+
+**Relates to**
+- `0003` - verifies the moderation path against a live Sightengine account. Option 2 below would
+  change the upload path underneath that check while it is still outstanding.
 
 ## Options
 1. **Email notifications for invite codes.** Codes are currently shared by hand. Cost: needs a
    sending domain and deliverability care, and it is the first outbound mail the app has sent.
 2. **Multi-image galleries.** Several uploads per event. Cost: touches the event shape, the upload
    path and the moderation flow that has just been built, so it is the option most likely to
-   disturb card 0003's verification.
+   disturb the verification card `0003` is waiting to run (linked above).
 3. **Real-time comments.** Live commenting on events. Cost: the first feature needing a persistent
    connection or polling, on shared hosting, for a small number of users.
 4. **Export and import.** Download or migrate a whole timeline. Cost: modest, and it is the only

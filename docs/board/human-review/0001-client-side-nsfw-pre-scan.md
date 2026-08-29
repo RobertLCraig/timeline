@@ -1,13 +1,32 @@
+---
+no_outward_effect: the words "browser" and "sent" here mean the app's own client-side code and a request to our own /api/upload route, not a deploy and not a message anybody receives
+---
+
 # Client-side NSFW pre-scan before upload
 
 ## Why
-Four of the five parts of the Phase 4 moderation design have shipped: the Sightengine scan in
-`UploadController`, the `app_settings` and `upload_flags` tables, the admin review routes, and the
-Flagged Uploads tab in `AdminPanel.jsx`. The client-side pre-scan is the one part that has not:
-`@tensorflow-models/nsfwjs` appears nowhere in `package.json` or `resources/js`.
+**Every picture somebody picks is uploaded before anything looks at it.** The scan that judges it
+runs on the server, inside the same request, so the file has already left the uploader's machine and
+already cost a Sightengine call by the time anyone knows it was a problem. The uploader sees nothing
+until the upload finishes.
 
-Without it every image reaches the server and burns a Sightengine call, and the free tier is 500
-images a month. The uploader also gets no feedback until after the upload completes.
+**What it costs.** The Sightengine free tier is 500 images a month, and every picture spends one of
+them whether or not it was ever in doubt. The uploader gets no feedback while they wait.
+
+**How it came to be this way.** The Phase 4 moderation design had five parts and four of them
+shipped in February: the Sightengine scan in `UploadController`, the `app_settings` and
+`upload_flags` tables, the admin review routes, and the flags tab in `AdminPanel.jsx`. The fifth,
+the check in the browser, was never built - it was the fourth bullet of five in a section labelled
+"planned", so nobody read it as outstanding work. When this card was written, the package that
+design named - `@tensorflow-models/nsfwjs` - appeared nowhere in `package.json` or `resources/js`.
+
+## Links
+
+**Relates to**
+- `0002` - that card owns `HANDOVER.md`, which describes this pre-scan as planned and names a
+  package that does not exist on npm; the two have to end up saying the same thing.
+- `0003` - proves the server-side scan this one sits in front of, against a real Sightengine
+  account. Anything that changes what the server does changes what that check is testing.
 
 ## Not this card
 Changing the server-side scan, the threshold setting, or the review queue. Those are built and this

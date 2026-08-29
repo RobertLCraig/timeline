@@ -1,17 +1,28 @@
 # Reconcile the handover's Phase 4 section with what shipped
 
 ## Why
-`HANDOVER.md` carries a section headed "Planned: Content Moderation (Phase 4)" describing an
-architecture decision, admin settings, a verification queue and a client pre-scan as future work.
-Four of those five are in the repository and have been since February: `UploadController` calls
-Sightengine, `app_settings` and `upload_flags` exist as tables, and `AdminController::uploadFlags`
-and `reviewFlag` are routed and rendered in `AdminPanel.jsx`.
+**The handover says content moderation has not been built, and most of it has.** `HANDOVER.md`
+carries a section headed "Planned: Content Moderation (Phase 4)" listing an architecture decision,
+admin settings, a verification queue and a client pre-scan as future work. Four of those five have
+been in the repository since February: `UploadController` calls Sightengine, `app_settings` and
+`upload_flags` exist as tables, and `AdminController::uploadFlags` and `reviewFlag` are routed and
+rendered in `AdminPanel.jsx`.
 
-Someone picking this up would plan work that is already done, and would not find the one part that
-genuinely is missing, because it is the fourth bullet of five in a section labelled "planned".
+**What it costs.** Someone picking this project up plans work that is already done. They also miss
+the one part that genuinely is missing, because it is the fourth bullet of five under a heading that
+says none of it exists.
+
+**How it came to be this way.** The section was written before the work and nobody came back to it
+when the work landed.
+
+## Links
+
+**Relates to**
+- `0001` - builds the one moderation part that really is still open, and it is the item this
+  section has to be left pointing at rather than restating.
 
 ## Not this card
-Building the pre-scan. That is card 0001.
+Building the pre-scan. That is card `0001`, linked above.
 
 ## Acceptance
 <!-- AC:BEGIN -->
