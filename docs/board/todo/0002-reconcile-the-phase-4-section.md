@@ -69,3 +69,61 @@ exist in this project; PHPUnit is the runner.) `.\vendor\bin\pint.bat --dirty --
 `.\vendor\bin\pint.bat --test` fails on 30 files, all pre-existing drift in `app/`, `config/`,
 `database/` — this card touched one markdown file and no PHP. No browser check is needed or possible
 from this worktree; the diff is documentation only.
+
+### 2026-08-29 review (v20260829170604-da3b)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 20s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+**#1 ÔÇö traced.** `HANDOVER.md` ┬º"Content Moderation" describes four shipped parts and names each file. Every claim holds:
+
+- Scan: `UploadController::store`, with helpers `scanEnabled`, `callSightengine`, `topScore` ÔÇö inline, no job class (`ScanUploadForContent` exists nowhere in `app/`), `models=nudity-2.0`, catch-and-log, response `{url, filename, flagged, flag_id}`.
+- Settings: `2026_02_25_000700_create_app_settings_table` seeds `0` and `0.6`; `AppSetting::get` is a bare `find()`, so "no cache" is right.
+- Flags: `2026_02_25_000800_create_upload_flags_table` ÔÇö columns match, `created_at` only, `scores` cast to array in `App\Models\UploadFlag`.
+- Queue: `AdminController::uploadFlags` (paginate 20) and `reviewFlag`, routed in `routes/api.php`; UI is `ContentFlagsTab` / `NsfwSettingsTab` in `AdminPanel.jsx`, labelled ­ƒÜ® Content Flags and ÔÜÖ´©Å NSFW Settings.
+
+The blockquote is correct: `reviewFlag` writes only `status`, `reviewed_by`, `reviewed_at` plus an audit row. `config/services.php` reads two env vars; `.env.example` carries two dead ones, as stated.
+
+**#2 ÔÇö traced.** Only "Not settled: the client-side pre-scan" remains open; it names `resources/js/lib/nsfwScan.js` and `EventForm.jsx` (both exist) and defers to card `0001`, which is in `docs/board/human-review/`. No design restated. The Sightengine-evidence sentence points at a card, not a plan.
+
+**#3 ÔÇö traced.** No "Future Improvements" heading survives; ┬º"Work in flight" points at `docs/board/todo/` and `docs/board/human-review/`, both present.
+
+VERDICT: sound
+
+**scope: sound**
+
+Scope check.
+
+**Touched:** `HANDOVER.md` and its own card. No code. The fence held ÔÇö nothing was built for card 0001. `resources/js/lib/nsfwScan.js` and `EventForm.jsx` are named only, not changed.
+
+**Two things I tried to call creep and could not:**
+
+1. The card-`0003` sentence in `HANDOVER.md` ┬º"Work in flight". AC#2 allows one open moderation item; this names a second. But card 0003 already sat on the board before this commit, and the sentence records evidence about shipped code (`UploadController::scanEnabled` and `callSightengine` have never run against a live account), not a feature to build. It cannot make a reader plan done work, which is the harm AC#2 guards.
+
+2. `.env.example` left carrying two dead lines. That is a code change, correctly refused, and it is not lost ÔÇö ┬º"Environment" says nothing reads them.
+
+**Half done:** none found. ┬º"Content Moderation" covers all four shipped parts, and no "planned" moderation text survives in `HANDOVER.md`, `README.md` or `RUNBOOK.md`.
+
+AC#3 was true from commit `71c643a`; the card comment says so instead of claiming it.
+
+VERDICT: sound
+
+**breakage: defect**
+
+**Finding ÔÇö the evidence sentence is wrong.**
+
+`HANDOVER.md`, section "Admin review queue", last paragraph says the scan, the threshold and the failure path are "as-written rather than as-observed".
+
+Two of those three are observed. `tests/Feature/UploadScanTest.php` fakes Sightengine and asserts both: `test_an_allowed_upload_is_still_scanned_server_side` proves the call goes out, `test_an_image_over_the_threshold_is_flagged_for_review` proves the 0.6 threshold writes an `upload_flags` row with `top_score` 0.91. Only the failure path in `UploadController::store`'s `catch` is untested.
+
+The section names a file for every other shipped part but never names that test file. A reader takes the sentence at face value, believes the scan is unproved, and writes tests that already exist ÔÇö or distrusts working code.
+
+Everything else checked out. I read `UploadController::store`, `scanEnabled`, `topScore`, `AppSetting::get`, both migrations, `AdminController::getSettings`/`updateSettings`/`uploadFlags`/`reviewFlag`, `routes/api.php` and `EventForm.jsx`. Every claim matched.
+
+The two contradictions left behind ÔÇö `.env.example`'s dead `NSFW_CHECKS_ENABLED` line, and card 0003 criterion #3 asking a person to verify a quarantine that `AdminController::reviewFlag` never performs ÔÇö are both written down in the card comment, so they are not silent.
+
+VERDICT: defect
+
