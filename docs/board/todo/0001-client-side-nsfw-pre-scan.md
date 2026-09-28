@@ -39,8 +39,12 @@ card sits in front of them, not over them.
 <!-- AC:BEGIN -->
 - [x] WHEN a user selects an image whose `Porn`, `Hentai` or `Sexy` score exceeds 0.7, THE APP SHALL
       block the upload in the browser and say why, before any request is sent.
-- [x] WHEN a user selects an image scoring below the threshold, THE APP SHALL upload it normally and
+- [ ] WHEN a user selects an image scoring below the threshold, THE APP SHALL upload it normally and
       the server-side scan SHALL still run, so the client check is a filter and never the only one.
+      Unticked 2026-09-29: the mount effect in `EventForm.jsx` sets `checksEnabled.current` from
+      `api.get('/upload/settings')` with no timeout, and `fetch` in `lib/api.js` has no abort, so a
+      stalled request leaves `handleImageChange` awaiting it with the file input and Submit disabled
+      and a clean photo can never be uploaded.
 - [x] WHERE the model fails to load, THE APP SHALL allow the upload and fall through to the server
       scan rather than blocking the user out of a working feature.
 - [x] WHEN the admin `nsfw_checks_enabled` setting is off, THE APP SHALL skip the browser scan and
@@ -309,3 +313,11 @@ VERDICT: defect
 
 
 **2026-09-28** The reviewer's acceptance lens returned this card sound: I checked all 4 criteria against the code. I could not break any of them. The reviewer's scope lens returned this card sound: **Scope review: I found no work that goes past the card's limits.**. The reviewer's breakage lens returned this card defect: **Findings (breakage lens)**. The loop moved it from todo/ to human-review/ because it has bounced 2 times between todo and ai-review, all 4 criteria ticked. THE BUILDER COULD NOT ACT ON THAT FINDING. A reviewer reopens every criterion it reports unmet, and the reviews that sent this card back named no criterion they disproved, so it came back with 4 of 4 criteria still ticked, every session found nothing open to do, and the loop promoted it again on the boxes. Add or reopen the criterion the finding breaks and move it back to todo/, or say here why the finding is wrong.
+
+**2026-09-29** Attended unblock pass: the 2026-09-28 breakage finding holds on `main`, so the second
+criterion is unticked with the finding beside it and the card goes back to `todo/`. The fix is to
+bound the settings fetch the way `scanImageFile()` bounds the model load, falling back to `false`
+(server scan decides) on timeout, with a test that a request which never settles still unlocks the
+form. Worth fixing on the way, not a criterion: `loadModel()` in `nsfwScan.js` clears `modelPromise`
+only when the load rejects, and `withTimeout` rejects its own race rather than the cached promise, so
+after one stalled load every later pick waits the full 15 s again.
