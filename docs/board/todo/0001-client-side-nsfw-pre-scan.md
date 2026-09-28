@@ -38,8 +38,10 @@ card sits in front of them, not over them.
       block the upload in the browser and say why, before any request is sent.
 - [x] WHEN a user selects an image scoring below the threshold, THE APP SHALL upload it normally and
       the server-side scan SHALL still run, so the client check is a filter and never the only one.
-- [x] WHERE the model fails to load, THE APP SHALL allow the upload and fall through to the server
+- [ ] WHERE the model fails to load, THE APP SHALL allow the upload and fall through to the server
       scan rather than blocking the user out of a working feature.
+- [ ] WHEN the admin `nsfw_checks_enabled` setting is off, THE APP SHALL skip the browser scan and
+      not fetch the model, so the setting still turns all content moderation off.
 <!-- AC:END -->
 
 ## Tasks
@@ -195,3 +197,5 @@ VERDICT: defect
 
 
 **2026-08-29** The reviewer returned this card and its finding is the last review entry at the bottom of ## Direction. The loop moved it from todo/ to human-review/ because it has bounced 1 time between todo and ai-review, all 3 criteria ticked. THE BUILDER COULD NOT ACT ON THAT FINDING. A reviewer never unticks a criterion - it is forbidden from editing acceptance at all - so the card came back with 3 of 3 criteria still ticked, every session found nothing open to do, and the loop promoted it again on the boxes. Untick what the reviewer disproved and move it back to todo/, or say here why the finding is wrong.
+
+**2026-09-28** Manager pass: reopened the model-load criterion and added the kill-switch one, because two of the review's breakage findings still hold on `main`. `loadModel()` in `resources/js/lib/nsfwScan.js` has no timeout, and `handleImageChange()` in `EventForm.jsx` disables Submit and the file input for the whole scan, so a weights fetch that stalls rather than fails leaves the form locked; the only fall-through test fails in `decode` before `loadModel()` runs, so the load-failure path is untested. And nothing in `nsfwScan.js` or `EventForm.jsx` reads `nsfw_checks_enabled`, which `UploadController::scanEnabled()` gates the server scan on, so turning moderation off in the admin panel still blocks photos in the browser. The third finding, that the client refuses where the server only flags, is what the first criterion asks for and is not reopened.
