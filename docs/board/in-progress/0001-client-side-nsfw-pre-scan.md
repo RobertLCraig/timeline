@@ -38,9 +38,9 @@ card sits in front of them, not over them.
       block the upload in the browser and say why, before any request is sent.
 - [x] WHEN a user selects an image scoring below the threshold, THE APP SHALL upload it normally and
       the server-side scan SHALL still run, so the client check is a filter and never the only one.
-- [ ] WHERE the model fails to load, THE APP SHALL allow the upload and fall through to the server
+- [x] WHERE the model fails to load, THE APP SHALL allow the upload and fall through to the server
       scan rather than blocking the user out of a working feature.
-- [ ] WHEN the admin `nsfw_checks_enabled` setting is off, THE APP SHALL skip the browser scan and
+- [x] WHEN the admin `nsfw_checks_enabled` setting is off, THE APP SHALL skip the browser scan and
       not fetch the model, so the setting still turns all content moderation off.
 <!-- AC:END -->
 
@@ -199,3 +199,51 @@ VERDICT: defect
 **2026-08-29** The reviewer returned this card and its finding is the last review entry at the bottom of ## Direction. The loop moved it from todo/ to human-review/ because it has bounced 1 time between todo and ai-review, all 3 criteria ticked. THE BUILDER COULD NOT ACT ON THAT FINDING. A reviewer never unticks a criterion - it is forbidden from editing acceptance at all - so the card came back with 3 of 3 criteria still ticked, every session found nothing open to do, and the loop promoted it again on the boxes. Untick what the reviewer disproved and move it back to todo/, or say here why the finding is wrong.
 
 **2026-09-28** Manager pass: reopened the model-load criterion and added the kill-switch one, because two of the review's breakage findings still hold on `main`. `loadModel()` in `resources/js/lib/nsfwScan.js` has no timeout, and `handleImageChange()` in `EventForm.jsx` disables Submit and the file input for the whole scan, so a weights fetch that stalls rather than fails leaves the form locked; the only fall-through test fails in `decode` before `loadModel()` runs, so the load-failure path is untested. And nothing in `nsfwScan.js` or `EventForm.jsx` reads `nsfw_checks_enabled`, which `UploadController::scanEnabled()` gates the server scan on, so turning moderation off in the admin panel still blocks photos in the browser. The third finding, that the client refuses where the server only flags, is what the first criterion asks for and is not reopened.
+
+**2026-09-28** RESULT: done
+TESTS: +5 new, all green
+TOUCHED: resources/js/lib/nsfwScan.js
+resources/js/lib/nsfwScan.test.js
+resources/js/pages/EventForm.jsx
+app/Http/Controllers/UploadController.php
+routes/api.php
+tests/Feature/UploadSettingsTest.php
+public/build/manifest.json
+public/build/assets/main-BBXJOO_O.js (replaces main-C9sZvmFV.js)
+public/build/assets/mobilenet_v2-DvSIPaG7.js (replaces mobilenet_v2-BDbuyLc4.js)
+docs/board/in-progress/0001-client-side-nsfw-pre-scan.md
+OUT-OF-SCOPE: none
+
+Closed the two reopened criteria.
+
+**Model load.** `scanImageFile()` now loads the model *before* decoding the image, and races the load
+against `MODEL_LOAD_TIMEOUT_MS` (15 s). A load that rejects or stalls returns null, so
+`handleImageChange` clears `scanning` and the form unlocks. The loader is an injectable option so
+Node can drive it. The old fall-through test is replaced by two that assert the loader was actually
+called. Watched red, in stages: against the old code both failed on "the model load was never
+attempted" (the reviewer's point: decode failed first). After reordering but before the timeout, the
+stall test hung and failed at its 2 s test timeout.
+
+**Kill switch.** New `GET /api/upload/settings` (authenticated, `UploadController::settings()`)
+returns `{ nsfw_checks_enabled: bool }`. It only reads the setting; the server scan, threshold and
+review queue are unchanged. `EventForm` fetches it on mount and passes `enabled` to
+`scanImageFile()`, which returns null without calling the loader when it is off. Watched red: the
+PHP tests failed with no route; the JS test failed with `1 !== 0` loads once the load came first.
+
+Assumed, because the repository does not say:
+- 15 s is my figure. Nothing names a timeout.
+- If the settings fetch fails, the browser scan is skipped and the server scan decides, per the
+  card's "a filter and never the only one".
+- **Consequence to know:** the setting seeds to `0`, so on any install where an admin has not turned
+  moderation on, the browser scan is now off too. That is what the criterion asks for.
+
+Not covered by a test: the lines in `EventForm.jsx` that fetch the switch and pass it on. There is no
+React test harness here. **It still needs a browser check**, from `C:\Dev\timeline` after merge: with
+the admin toggle off, pick a photo and confirm no `mobilenet_v2` or `group1-shard1of1` request in the
+network tab; toggle it on and confirm they load. No browser was run this session.
+
+Suite: `.\vendor\bin\phpunit.bat` 37 tests, 92 assertions, green (no `pest.bat` exists here).
+`npm run test:js` 6 tests, green. `pint --test` passes on the new PHP files. I did not keep
+`pint --dirty`'s rewrite of `UploadController.php`: it re-spaced all of `store()`, the server scan
+this card is fenced off from, so that file's old lines stay as they were. `npm ci` was needed before
+`npm run build`, as the last run noted.

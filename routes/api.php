@@ -74,6 +74,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Uploads
     Route::post('/upload', [UploadController::class, 'store'])->middleware('throttle:upload');
+    Route::get('/upload/settings', [UploadController::class, 'settings']);
 
     // Groups - user's own
     Route::get('/groups', [GroupController::class, 'index'])->middleware('ability:groups:read');

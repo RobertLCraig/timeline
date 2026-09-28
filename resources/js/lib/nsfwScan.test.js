@@ -24,7 +24,26 @@ test('ignores classes that are not blocked, however high they score', () => {
     assert.equal(blockedClass([{ className: 'Drawing', probability: 0.99 }]), null);
 });
 
-test('allows the upload when the scan cannot run at all', async () => {
-    // No DOM here, so decode() fails the way a broken model load would.
-    assert.equal(await scanImageFile(null), null);
+test('allows the upload when the model fails to load', async () => {
+    let loads = 0;
+    const load = () => { loads++; return Promise.reject(new Error('weights 404')); };
+
+    assert.equal(await scanImageFile(null, { load }), null);
+    assert.equal(loads, 1, 'the model load was never attempted, so its failure was not what was caught');
+});
+
+test('allows the upload when the model load stalls', { timeout: 2000 }, async () => {
+    let loads = 0;
+    const load = () => { loads++; return new Promise(() => {}); };
+
+    assert.equal(await scanImageFile(null, { load, timeoutMs: 50 }), null);
+    assert.equal(loads, 1, 'the model load was never attempted, so its stall was not what was caught');
+});
+
+test('skips the scan and never fetches the model when checks are off', async () => {
+    let loads = 0;
+    const load = () => { loads++; return Promise.reject(new Error('should not load')); };
+
+    assert.equal(await scanImageFile(null, { enabled: false, load }), null);
+    assert.equal(loads, 0);
 });

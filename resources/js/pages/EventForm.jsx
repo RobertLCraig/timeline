@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { scanImageFile } from '../lib/nsfwScan';
@@ -37,6 +37,15 @@ export default function EventForm() {
     const [scanning, setScanning] = useState(false);
     const [loading, setLoading] = useState(false);
     const [pageLoading, setPageLoading] = useState(isEdit);
+    // The admin kill switch. Held as a promise so a photo picked before it
+    // arrives waits for it; if it cannot be read, the server scan decides.
+    const checksEnabled = useRef(Promise.resolve(false));
+
+    useEffect(() => {
+        checksEnabled.current = api.get('/upload/settings')
+            .then(d => d.nsfw_checks_enabled === true)
+            .catch(() => false);
+    }, []);
 
     useEffect(() => {
         // Load categories and per-user category visibility defaults in parallel
@@ -109,7 +118,7 @@ export default function EventForm() {
         // scan still has the last word.
         setError('');
         setScanning(true);
-        const blocked = await scanImageFile(file);
+        const blocked = await scanImageFile(file, { enabled: await checksEnabled.current });
         setScanning(false);
 
         if (blocked) {

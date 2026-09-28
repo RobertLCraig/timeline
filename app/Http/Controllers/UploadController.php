@@ -78,6 +78,19 @@ class UploadController extends Controller
         ], 201);
     }
 
+    /**
+     * GET /api/upload/settings
+     *
+     * The admin kill switch, for the browser pre-scan. Off means the browser
+     * skips its scan and never fetches the model.
+     */
+    public function settings()
+    {
+        return response()->json([
+            'nsfw_checks_enabled' => AppSetting::get('nsfw_checks_enabled', '0') === '1',
+        ]);
+    }
+
     // ── Private helpers ──────────────────────────────────────────────────────
 
     private function scanEnabled(): bool

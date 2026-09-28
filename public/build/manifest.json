@@ -35,7 +35,7 @@
     ]
   },
   "node_modules/nsfwjs/dist/esm/models/mobilenet_v2.js": {
-    "file": "assets/mobilenet_v2-BDbuyLc4.js",
+    "file": "assets/mobilenet_v2-DvSIPaG7.js",
     "name": "mobilenet_v2",
     "src": "node_modules/nsfwjs/dist/esm/models/mobilenet_v2.js",
     "isDynamicEntry": true,
@@ -53,7 +53,7 @@
     "isEntry": true
   },
   "resources/js/main.jsx": {
-    "file": "assets/main-C9sZvmFV.js",
+    "file": "assets/main-BBXJOO_O.js",
     "name": "main",
     "src": "resources/js/main.jsx",
     "isEntry": true,
