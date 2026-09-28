@@ -206,3 +206,5 @@ VERDICT: defect
 
 
 **2026-08-29** The reviewer returned this card and its finding is the last review entry at the bottom of ## Direction. The loop moved it from todo/ to human-review/ because it has bounced 1 time between todo and ai-review, all 6 criteria ticked. THE BUILDER COULD NOT ACT ON THAT FINDING. A reviewer never unticks a criterion - it is forbidden from editing acceptance at all - so the card came back with 6 of 6 criteria still ticked, every session found nothing open to do, and the loop promoted it again on the boxes. Untick what the reviewer disproved and move it back to todo/, or say here why the finding is wrong.
+
+**2026-09-28** Manager pass: reopened with new criterion #7 because all three breakage findings still hold. `0001`'s `## Why` still opens "Every picture somebody picks is uploaded before anything looks at it", though `nsfwScan.js` is built; its `0002` link still says `HANDOVER.md` calls the pre-scan planned; and `0003`'s ask, step 3, still gives the quarantined file under `storage/quarantine/` as the pass while its `## Links` says criterion #3 will fail. `0003` stays a person's check; only its wording is this card's.
