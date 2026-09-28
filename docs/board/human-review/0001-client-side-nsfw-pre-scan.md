@@ -304,3 +304,5 @@ VERDICT: defect
 
 - **#2 was named by the breakage lens and is not a ticked criterion here**, so nothing was changed: if the `/upload/settings` request stalls, `handleImageChange` never gets past its await, so a clean photo cannot be uploaded at all.
 
+
+**2026-09-28** The reviewer's acceptance lens returned this card sound: I checked all 4 criteria against the code. I could not break any of them. The reviewer's scope lens returned this card sound: **Scope review: I found no work that goes past the card's limits.**. The reviewer's breakage lens returned this card defect: **Findings (breakage lens)**. The loop moved it from todo/ to human-review/ because it has bounced 2 times between todo and ai-review, all 4 criteria ticked. THE BUILDER COULD NOT ACT ON THAT FINDING. A reviewer reopens every criterion it reports unmet, and the reviews that sent this card back named no criterion they disproved, so it came back with 4 of 4 criteria still ticked, every session found nothing open to do, and the loop promoted it again on the boxes. Add or reopen the criterion the finding breaks and move it back to todo/, or say here why the finding is wrong.
