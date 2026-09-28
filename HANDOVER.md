@@ -295,9 +295,12 @@ buttons. Each decision writes an `upload_flag.approved` / `upload_flag.quarantin
 > delete the file, and does not move it to `storage/quarantine/` — the image stays live at its
 > `public/uploads/` URL. Nobody is emailed either way.
 
-Nor has any of this been run against a real Sightengine account, so the scan, the threshold and the
-failure path are as-written rather than as-observed. That check is a card on the board, not a code
-change.
+The evidence for the server scan and its threshold is `tests/Feature/UploadScanTest.php`, which
+fakes Sightengine: `test_an_allowed_upload_is_still_scanned_server_side` proves the call goes out,
+and `test_an_image_over_the_threshold_is_flagged_for_review` proves a score at or above `0.6` writes
+an `upload_flags` row. Only the failure path — the `catch` in `UploadController::store` — is
+unobserved. None of it has been run against a real Sightengine account; that check is a card on the
+board, not a code change.
 
 ### Environment
 
