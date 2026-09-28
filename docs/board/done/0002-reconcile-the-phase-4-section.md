@@ -159,3 +159,64 @@ threshold, and calls only the `catch` in `UploadController::store` (line 67) uno
 one true part of the old sentence: nothing has run against a real Sightengine account, and that is
 still a card. Suite: `.\vendor\bin\phpunit.bat` 37 tests green (there is no `pest.bat` here);
 `.\vendor\bin\pint.bat --dirty --test` passes. No browser check is needed; the diff is prose only.
+
+### 2026-09-28 review (v20260928192012-7b35)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 12s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+I read `HANDOVER.md`, `tests/Feature/UploadScanTest.php` and `UploadController::store`. I tried to break all four criteria. None of them broke.
+
+- **#1 holds.** The "Content Moderation" section in `HANDOVER.md` covers four parts, and it names the file for each one:
+  - the server scan, in `UploadController::store`
+  - the `app_settings` table, with its migration and the `AppSetting` model
+  - the `upload_flags` table, with its migration and the `UploadFlag` model
+  - the admin review queue, in `AdminController::uploadFlags` and `reviewFlag`, shown by `ContentFlagsTab` in `AdminPanel.jsx`
+
+  The last review checked each of these against the code, and nothing in these parts has changed since.
+- **#2 holds.** Only one part is still marked open: "Not settled: the client-side pre-scan". It points at card `0001` and does not repeat its design. The line about card `0003` says what the shipped code has not been tested against. It is not a plan for new work.
+- **#3 holds.** There is no "Future Improvements" list now. The "Work in flight" section points at `docs/board/`.
+- **#4 holds.** The "Admin review queue" part of `HANDOVER.md` names `tests/Feature/UploadScanTest.php` as the proof. It names both tests, and both are in that file:
+  - `test_an_allowed_upload_is_still_scanned_server_side`
+  - `test_an_image_over_the_threshold_is_flagged_for_review`
+
+  It says only the `catch` in `UploadController::store` is not tested. That is true. The phrase "as-written rather than as-observed" is gone.
+
+VERDICT: sound
+
+**scope: sound**
+
+The work for this card stayed inside its fence. Commit `3e593ba` changed only two files:
+
+- `HANDOVER.md`: one paragraph under "Admin review queue".
+- The card itself: `docs/board/.../0002-reconcile-the-phase-4-section.md`.
+
+**The big diff is not this card's work.** It also shows `nsfwScan.js`, `EventForm.jsx`, the new `UploadController::settings` route, the build files and `package.json`. Other commits added those for card `0001`, and the lanes it went through show this. The rewrite of `docs/board/README.md` came from other commits too. The 0002 commits did not touch the pre-scan, so the "Not this card" fence held.
+
+**Nothing is half done.** The new `HANDOVER.md` text names `tests/Feature/UploadScanTest.php` and both of its tests. It calls only the `catch` in `UploadController::store` unobserved. The words "as-written rather than as-observed" are gone.
+
+**Two items I checked and did not count as creep:**
+
+1. `.env.example` still has two dead lines. The builder did not change them, which is correct because that is a code change. The "Environment" section of `HANDOVER.md` says nothing reads them.
+2. The "Work in flight" section names card `0003`. That card was already on the board. The sentence is about proof for shipped code, not about a plan to build something.
+
+No criterion failed.
+
+VERDICT: sound
+
+**breakage: sound**
+
+I tried to break this card, and I could not.
+
+- **Test names:** Both tests that `HANDOVER.md` names are in `tests/Feature/UploadScanTest.php`. The names are spelled exactly right.
+- **Threshold:** The handover says "at or above `0.6`". `UploadController::store` uses `$topScore >= $threshold`, so that matches. The test that checks it expects a score of 0.91.
+- **Failure path:** The only untested code is the `catch (\Throwable $e)` in `UploadController::store`. No test in `UploadScanTest` makes Sightengine fail, so calling only that path unobserved is correct.
+- **Old wording:** The phrase "as-written rather than as-observed" is gone from `HANDOVER.md`.
+
+Criterion #4 holds. The first review already checked #1 to #3, and this change does not affect them.
+
+VERDICT: sound
+
