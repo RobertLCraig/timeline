@@ -61,6 +61,11 @@ everything the card knows and changes only how it is ordered and said. `## Direc
       and SHALL NOT edit `## Direction` or `## Decided`. proves: none - as #2
 - [x] #6 WHEN this board's rewrite is finished, THE BOARD SHALL report zero open cards failing the
       checks. proves: none - as #2
+- [ ] #7 NO rewritten card SHALL contradict itself or the code: `0001`'s `## Why` SHALL say in the
+      past tense what was true when it was raised, its `0002` link SHALL not claim `HANDOVER.md`
+      calls the pre-scan planned, and `0003`'s ask SHALL not give the nulled `image_url` and
+      `storage/quarantine/` as the pass that its own `## Links` says `AdminController::reviewFlag`
+      never produces. proves: none - as #2
 <!-- AC:END -->
 
 ## Tasks
