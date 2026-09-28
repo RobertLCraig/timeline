@@ -61,7 +61,7 @@ everything the card knows and changes only how it is ordered and said. `## Direc
       and SHALL NOT edit `## Direction` or `## Decided`. proves: none - as #2
 - [x] #6 WHEN this board's rewrite is finished, THE BOARD SHALL report zero open cards failing the
       checks. proves: none - as #2
-- [ ] #7 NO rewritten card SHALL contradict itself or the code: `0001`'s `## Why` SHALL say in the
+- [x] #7 NO rewritten card SHALL contradict itself or the code: `0001`'s `## Why` SHALL say in the
       past tense what was true when it was raised, its `0002` link SHALL not claim `HANDOVER.md`
       calls the pre-scan planned, and `0003`'s ask SHALL not give the nulled `image_url` and
       `storage/quarantine/` as the pass that its own `## Links` says `AdminController::reviewFlag`
@@ -317,4 +317,28 @@ VERDICT: defect
 
 - **#7 reopened**, by the scope lens: card 0003's ask still sends the person to a "Flagged Uploads" tab and an "unconfigured" message, and `AdminPanel.jsx` has neither of them
 - **#7 was named by the breakage lens and is not a ticked criterion here**, so nothing was changed: `0003`'s ask still sends the person to a "Flagged Uploads" tab that does not exist, and asks them to check for an "unconfigured" message that `NsfwSettingsTab` never shows.
+
+**2026-09-28** RESULT: done
+TESTS: +0 new, all green
+TOUCHED: docs/board/human-review/0003-verify-moderation-against-real-sightengine.md
+docs/board/in-progress/0005-rewrite-this-board-s-cards-for-the-reader.md
+OUT-OF-SCOPE: none
+
+Both review findings on #7 fixed. `proves: none`, so no test; the fix is prose on `0003`.
+
+- **Tab names.** Steps 2 and 3 of `0003`'s ask now say **🚩 Content Flags**, the label
+  `AdminPanel.jsx` renders, not "Flagged Uploads". Its acceptance #2 named the same missing tab, so
+  I changed only that label there as well; the criterion's meaning is unchanged. I declare it here
+  because it is the one edit inside another card's `## Acceptance`.
+- **Step 1's pass.** `NsfwSettingsTab` shows no "unconfigured" state, and `HANDOVER.md` §"Server-side
+  scan" says an unconfigured install skips the scan silently. Step 1 now names the **⚙️ NSFW
+  Settings** tab, the "Enable NSFW checks" toggle and Save Settings, and gives the pass the page does
+  show: "Settings saved." and the toggle reading On. It says plainly that this cannot prove the
+  credentials and step 3 does. Step 2 now says missing credentials also give no flag, so its pass
+  counts only after step 3 passes - otherwise the reader could pass step 2 against a dead
+  integration, the exact failure `0003` exists to catch.
+
+`board:convention --path=$PWD --cards` read `timeline 0 5 0007` after the edit. Suite:
+`.\vendor\bin\phpunit.bat` 37 tests, 92 assertions, green. Pint not rerun: no PHP changed, and the
+old drift is card `0006`. Markdown only, so no browser check applies.
 

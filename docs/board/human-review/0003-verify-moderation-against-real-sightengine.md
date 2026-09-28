@@ -6,12 +6,14 @@
 with its own expected result:
 
 1. Create a Sightengine account and put `SIGHTENGINE_API_USER` and `SIGHTENGINE_API_SECRET` in the
-   server `.env`, then set `nsfw_checks_enabled` to `1` in Admin settings. Pass: the settings page
-   stops reporting the feature as unconfigured.
-2. Upload an ordinary family photo. Pass: it goes live and no flag appears in Admin, Flagged
-   Uploads. A flag here means the threshold is set too low to be usable.
+   server `.env`, then in Admin, **⚙️ NSFW Settings**, tick "Enable NSFW checks" and click Save
+   Settings. Pass: "Settings saved." appears and the toggle reads On. The page never checks the
+   credentials, so this step cannot prove them; step 3 does.
+2. Upload an ordinary family photo. Pass: it goes live and no flag appears in Admin, **🚩 Content
+   Flags**. A flag here means the threshold is set too low to be usable. Missing credentials also
+   give no flag, so this pass only counts once step 3 has passed.
 3. Upload something the model should score high on. Pass: the event still saves, and the image
-   appears in Flagged Uploads with a score. Then click Quarantine. Expected: the flag moves to the
+   appears in Content Flags with a score. Then click Quarantine. Expected: the flag moves to the
    quarantined filter, and the event's `image_url` and the file are **not** touched -
    `AdminController::reviewFlag` records the decision and nothing else (see `0002` under
    `## Links`). So criterion #3 fails as written. Record what you saw; do not count it as a fault in
@@ -58,7 +60,7 @@ does.
 - [ ] #1 WHEN an image is uploaded with checks enabled and credentials set, THE APP SHALL record a
       Sightengine score against it.
 - [ ] #2 WHEN an image scores above the configured threshold, THE APP SHALL create an `upload_flags`
-      row and show it in Admin, Flagged Uploads.
+      row and show it in Admin, Content Flags.
 - [ ] #3 WHEN a flagged upload is quarantined, THE EVENT'S `image_url` SHALL be null and the file
       SHALL be under `storage/quarantine/`.
 - [ ] #4 WHERE the Sightengine call fails, THE UPLOAD SHALL still succeed and a warning SHALL appear
