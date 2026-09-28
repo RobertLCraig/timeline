@@ -247,3 +247,60 @@ Suite: `.\vendor\bin\phpunit.bat` 37 tests, 92 assertions, green (no `pest.bat` 
 `pint --dirty`'s rewrite of `UploadController.php`: it re-spaced all of `store()`, the server scan
 this card is fenced off from, so that file's old lines stay as they were. `npm ci` was needed before
 `npm run build`, as the last run noted.
+
+### 2026-09-28 review (v20260928190743-81d9)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 21s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+I checked all 4 criteria against the code. I could not break any of them.
+
+**#1 Block over 0.7.** `blockedClass()` in `resources/js/lib/nsfwScan.js` finds a `Porn`, `Hentai` or `Sexy` score over `NSFW_THRESHOLD` (0.7). `handleImageChange()` in `resources/js/pages/EventForm.jsx` shows the error and does not set `imageFile`. The upload in `handleSubmit()` runs only when `imageFile` is set, so no request goes out.
+
+**#2 Below threshold uploads, and the server still scans.** `UploadController::store()` still calls `scanEnabled()` and then `callSightengine()`. The test `test_an_allowed_upload_is_still_scanned_server_side` proves it.
+
+**#3 Model fails, upload still works.** `scanImageFile()` now loads the model first. It gives up after 15 seconds (`withTimeout`). It catches every error and returns null, which allows the upload. The model loader is now passed in as an option, so the tests can make it fail on purpose.
+
+**#4 Admin switch off.** `UploadController::settings()` sends back `nsfw_checks_enabled`. The route `GET /upload/settings` is in `routes/api.php`. `EventForm` waits for that value. `scanImageFile()` returns before it calls the loader when the switch is off. The built file `public/build/assets/main-BBXJOO_O.js` has this change in it.
+
+One small gap. It does not fail any criterion. The settings fetch in `EventForm` has no time limit. If that request hangs, the photo picker stays locked.
+
+VERDICT: sound
+
+**scope: sound**
+
+**Scope review: I found no work that goes past the card's limits.**
+
+**The server change is inside the limits.** The card's "Not this card" section blocks changes to the server scan, the threshold setting and the review queue. `UploadController::settings()` only reads `nsfw_checks_enabled` and sends it back. It does not change `store()`, `scanEnabled()`, `nudity_threshold` or the flags. Criterion 4 cannot be met without it, because the browser has no other way to know the switch value. The route in `routes/api.php` is behind auth.
+
+**It does not break the Plan.** The Plan says not to fetch the threshold. The client does not fetch the threshold: `NSFW_THRESHOLD` is still a fixed value in `nsfwScan.js`. The on/off switch is a different setting.
+
+**Most of the diff is not this card.** The large `HANDOVER.md` and `docs/board/README.md` changes are from card `0002` and the board itself. The last build's TOUCHED list does not include them. Now `HANDOVER.md` says the pre-scan is built and waiting for review, so the two cards agree.
+
+**Nothing is half done, with one small note.** In `EventForm.jsx`, the new lines that read the switch have no test. The builder says this, and it gives the browser steps to check it. Task 1 still uses the wrong package name, but that is only wording.
+
+No criterion is disproved.
+
+VERDICT: sound
+
+**breakage: defect**
+
+**Findings (breakage lens)**
+
+1. **A slow settings request locks the form.** Look at `handleImageChange` in `resources/js/pages/EventForm.jsx`. It sets `scanning` to true, then waits on `checksEnabled.current`. That value comes from the `api.get('/upload/settings')` call in the mount effect. That call has no timeout. The 15 s race in `scanImageFile` only covers the model load, not this call. If the request stalls instead of failing, the `.catch(() => false)` never runs. The file input and Submit then stay disabled with no way out. This is the same stall bug the manager pass reopened, moved one step earlier. No test covers it.
+
+2. **After a timeout, every later pick waits the full 15 s.** Look at `loadModel` in `resources/js/lib/nsfwScan.js`. It clears `modelPromise` only when the load *rejects*. A stalled load never rejects. `withTimeout` rejects its own race, not the cached promise. So each later pick reuses the stalled promise and waits another 15 s. The comment "one bad network moment" does not reset this.
+
+3. The server kill switch is checked, and a model-load failure now falls through. Both have tests. Criteria #1, #3 and #4 hold.
+
+UNMET: #2 if the `/upload/settings` request stalls, `handleImageChange` never gets past its await, so a clean photo cannot be uploaded at all.
+
+VERDICT: defect
+
+**acceptance**
+
+- **#2 was named by the breakage lens and is not a ticked criterion here**, so nothing was changed: if the `/upload/settings` request stalls, `handleImageChange` never gets past its await, so a clean photo cannot be uploaded at all.
+
