@@ -240,7 +240,8 @@ Criterion #7 met. It is `proves: none`, so no test; the three fixes are prose.
   quarantine should move the file is not this card's call.
 
 `## Comments` on `0001` and `0003` were not touched. `board:convention --path=$PWD --cards` read
-`timeline 0 4 0006` before the first edit and after the last.
+`timeline 0 4 0006` before the first edit and `timeline 0 5 0007` after the last; the fifth open
+card is `0006`, and it passes the checks.
 
 Suite: `.\vendor\bin\phpunit.bat` 37 tests, 92 assertions, green (`pest.bat` does not exist here).
 `.\vendor\bin\pint.bat --test` is red on 30 PHP files, all old drift; this card changed no PHP. That
