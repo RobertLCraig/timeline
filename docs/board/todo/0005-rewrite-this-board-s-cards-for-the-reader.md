@@ -61,7 +61,7 @@ everything the card knows and changes only how it is ordered and said. `## Direc
       and SHALL NOT edit `## Direction` or `## Decided`. proves: none - as #2
 - [x] #6 WHEN this board's rewrite is finished, THE BOARD SHALL report zero open cards failing the
       checks. proves: none - as #2
-- [x] #7 NO rewritten card SHALL contradict itself or the code: `0001`'s `## Why` SHALL say in the
+- [ ] #7 NO rewritten card SHALL contradict itself or the code: `0001`'s `## Why` SHALL say in the
       past tense what was true when it was raised, its `0002` link SHALL not claim `HANDOVER.md`
       calls the pre-scan planned, and `0003`'s ask SHALL not give the nulled `image_url` and
       `storage/quarantine/` as the pass that its own `## Links` says `AdminController::reviewFlag`
@@ -246,3 +246,75 @@ card is `0006`, and it passes the checks.
 Suite: `.\vendor\bin\phpunit.bat` 37 tests, 92 assertions, green (`pest.bat` does not exist here).
 `.\vendor\bin\pint.bat --test` is red on 30 PHP files, all old drift; this card changed no PHP. That
 drift is now card `0006`. No browser check applies; the diff is markdown only.
+
+### 2026-09-28 review (v20260928193205-4db8)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 24s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+I checked each criterion against the card files and could not break any of them.
+
+- **#1:** Each open card's `## Why` states the problem and names no fix. On `0003` and `0004` the ask sits above `## Why`. `docs/board/README.md` requires that on a `human-review/` card, so it is not a failure.
+- **#2:** `0004` is the only decision card. Its "Why it needs you" line gives local knowledge as the reason a person must answer it.
+- **#3:** `0001`, `0002`, `0003` and `0004` each have a `## Links` section. Each link has a relationship type and a reason.
+- **#4:** No card on this board has `needs:` or `Blocked by`, so this is true with nothing to check.
+- **#5:** The earlier review traced this by diff. The new work did not touch `## Comments` on `0001` or `0003`.
+- **#6:** I ran `board:convention --path=C:\Dev\timeline`. It printed `timeline 0 5 0007`, so zero open cards fail.
+- **#7:**
+  - `0001` `## Why` now opens in the past tense ("When this card was raised..."). It says `nsfwScan.js` has since been built.
+  - Its `0002` link says the handover called the pre-scan planned only when the card was raised, and now calls it built.
+  - In `0003`, step 3 now says Quarantine does not touch `image_url` or the file. The "Pass" line no longer includes Quarantine.
+  - `0003`'s own acceptance #3 still asks for a nulled `image_url` and `storage/quarantine/`. That is `0003`'s own criterion, and #7 covers only the ask.
+
+VERDICT: sound
+
+**scope: defect**
+
+I checked the latest work on card 0005 against its own fence. I found one thing it left half done.
+
+**What holds**
+
+- **Card 0006:** The builder created it as a new card. The comment declares it as `OUT-OF-SCOPE: 0006`. It moves no lane, so it is not scope creep.
+- **Card 0003, step 3:** It now brings in the quarantine fact from card 0002. Criterion #7 asks for that, so the old scope finding no longer applies.
+- **Card 0001, `## Why` and its `0002` link:** They are now in the past tense, as #7 asks. All the old facts are still there.
+
+**What is left half done**
+
+Card 0003 still does not match the code. Criterion #7 opens with "NO rewritten card SHALL contradict itself or the code". Look at `docs/board/human-review/0003-verify-moderation-against-real-sightengine.md`, section `## What I need from you`:
+
+- **Steps 2 and 3** send the person to "Admin, Flagged Uploads". That tab does not exist. `ContentFlagsTab` in `resources/js/pages/AdminPanel.jsx` has the label "🚩 Content Flags".
+- **Step 1** says the pass is that the settings page "stops reporting the feature as unconfigured". `AdminPanel.jsx` has no text like that, so the person waits for a signal that never comes.
+
+Card 0002's comments already recorded the wrong tab name. The rewrite fixed step 3's quarantine wording and left the wrong tab name in the same steps. The person will still look for a tab that is not there.
+
+UNMET: #7 card 0003's ask still sends the person to a "Flagged Uploads" tab and an "unconfigured" message, and `AdminPanel.jsx` has neither of them
+
+VERDICT: defect
+
+**breakage: defect**
+
+I checked the three fixes. All three hold now. But card `0003` still says things the code does not do.
+
+**What is fixed:**
+- `0001` `## Why` now uses the past tense. It also says the scan is built in `nsfwScan.js`.
+- `0001`'s link to `0002` no longer says `HANDOVER.md` calls the pre-scan "planned".
+- `0003` step 3 no longer tells the reader that a pass means a nulled `image_url` and a file in `storage/quarantine/`.
+
+**What is still broken:** `0003` `## What I need from you` still does not match the code in two places.
+- Steps 2 and 3 tell the person to look in "Flagged Uploads". No tab has that name. `AdminPanel.jsx` (`ContentFlagsTab`) shows **🚩 Content Flags**. Card `0002` already recorded this: "There is no 'Flagged Uploads' tab".
+- Step 1 says a pass is "the settings page stops reporting the feature as unconfigured". `AdminPanel.jsx` (`NsfwSettingsTab`) never shows such a message. `grep` finds no "unconfigured" or "not configured" text anywhere in `AdminPanel.jsx`. So the person cannot see that pass happen.
+
+The builder rewrote this same ask, but these two errors are still in it. Criterion #7 says no rewritten card shall contradict the code.
+
+UNMET: #7 `0003`'s ask still sends the person to a "Flagged Uploads" tab that does not exist, and asks them to check for an "unconfigured" message that `NsfwSettingsTab` never shows.
+
+VERDICT: defect
+
+**acceptance**
+
+- **#7 reopened**, by the scope lens: card 0003's ask still sends the person to a "Flagged Uploads" tab and an "unconfigured" message, and `AdminPanel.jsx` has neither of them
+- **#7 was named by the breakage lens and is not a ticked criterion here**, so nothing was changed: `0003`'s ask still sends the person to a "Flagged Uploads" tab that does not exist, and asks them to check for an "unconfigured" message that `NsfwSettingsTab` never shows.
+
