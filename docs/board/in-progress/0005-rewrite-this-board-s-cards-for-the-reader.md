@@ -61,7 +61,7 @@ everything the card knows and changes only how it is ordered and said. `## Direc
       and SHALL NOT edit `## Direction` or `## Decided`. proves: none - as #2
 - [x] #6 WHEN this board's rewrite is finished, THE BOARD SHALL report zero open cards failing the
       checks. proves: none - as #2
-- [ ] #7 NO rewritten card SHALL contradict itself or the code: `0001`'s `## Why` SHALL say in the
+- [x] #7 NO rewritten card SHALL contradict itself or the code: `0001`'s `## Why` SHALL say in the
       past tense what was true when it was raised, its `0002` link SHALL not claim `HANDOVER.md`
       calls the pre-scan planned, and `0003`'s ask SHALL not give the nulled `image_url` and
       `storage/quarantine/` as the pass that its own `## Links` says `AdminController::reviewFlag`
@@ -213,3 +213,35 @@ VERDICT: defect
 **2026-08-29** The reviewer returned this card and its finding is the last review entry at the bottom of ## Direction. The loop moved it from todo/ to human-review/ because it has bounced 1 time between todo and ai-review, all 6 criteria ticked. THE BUILDER COULD NOT ACT ON THAT FINDING. A reviewer never unticks a criterion - it is forbidden from editing acceptance at all - so the card came back with 6 of 6 criteria still ticked, every session found nothing open to do, and the loop promoted it again on the boxes. Untick what the reviewer disproved and move it back to todo/, or say here why the finding is wrong.
 
 **2026-09-28** Manager pass: reopened with new criterion #7 because all three breakage findings still hold. `0001`'s `## Why` still opens "Every picture somebody picks is uploaded before anything looks at it", though `nsfwScan.js` is built; its `0002` link still says `HANDOVER.md` calls the pre-scan planned; and `0003`'s ask, step 3, still gives the quarantined file under `storage/quarantine/` as the pass while its `## Links` says criterion #3 will fail. `0003` stays a person's check; only its wording is this card's.
+
+**2026-09-28** RESULT: done
+TESTS: +0 new, all green
+TOUCHED: docs/board/human-review/0001-client-side-nsfw-pre-scan.md
+docs/board/human-review/0003-verify-moderation-against-real-sightengine.md
+docs/board/in-progress/0005-rewrite-this-board-s-cards-for-the-reader.md
+docs/board/todo/0006-bring-the-php-tree-back-to-pint-clean.md
+OUT-OF-SCOPE: 0006
+
+Criterion #7 met. It is `proves: none`, so no test; the three fixes are prose.
+
+- **`0001` `## Why`** is now past tense throughout, opening "When this card was raised, every
+  picture somebody picked was uploaded before anything looked at it". Every fact it carried stays:
+  the 500-a-month free tier, the four parts shipped in February, the fourth-bullet-of-five history,
+  the wrong package name. One sentence is added so the section no longer contradicts the thread: the
+  check has since been built as `resources/js/lib/nsfwScan.js`, and `## Comments` holds how.
+- **`0001`'s `0002` link** no longer says `HANDOVER.md` calls the pre-scan planned. It says that was
+  true when the card was raised, and that the handover now calls it built and points at `0001`.
+  Checked against `HANDOVER.md` §"Not settled: the client-side pre-scan".
+- **`0003`'s ask, step 3** no longer gives the nulled `image_url` and `storage/quarantine/` as the
+  pass. It says what Quarantine really does - the flag changes status and nothing else, per
+  `AdminController::reviewFlag` and `HANDOVER.md` §"Admin review queue" - and that criterion #3
+  fails as written. The **Pass** line now covers steps 1 and 2, the flag and score in step 3, and
+  criterion #4. `0003`'s own `## Acceptance` was not reworded: it is that card's, and whether
+  quarantine should move the file is not this card's call.
+
+`## Comments` on `0001` and `0003` were not touched. `board:convention --path=$PWD --cards` read
+`timeline 0 4 0006` before the first edit and after the last.
+
+Suite: `.\vendor\bin\phpunit.bat` 37 tests, 92 assertions, green (`pest.bat` does not exist here).
+`.\vendor\bin\pint.bat --test` is red on 30 PHP files, all old drift; this card changed no PHP. That
+drift is now card `0006`. No browser check applies; the diff is markdown only.

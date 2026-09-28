@@ -5,26 +5,29 @@ no_outward_effect: the words "browser" and "sent" here mean the app's own client
 # Client-side NSFW pre-scan before upload
 
 ## Why
-**Every picture somebody picks is uploaded before anything looks at it.** The scan that judges it
-runs on the server, inside the same request, so the file has already left the uploader's machine and
-already cost a Sightengine call by the time anyone knows it was a problem. The uploader sees nothing
-until the upload finishes.
+**When this card was raised, every picture somebody picked was uploaded before anything looked at
+it.** The scan that judged it ran on the server, inside the same request, so the file had already
+left the uploader's machine and already cost a Sightengine call by the time anyone knew it was a
+problem. The uploader saw nothing until the upload finished.
 
-**What it costs.** The Sightengine free tier is 500 images a month, and every picture spends one of
-them whether or not it was ever in doubt. The uploader gets no feedback while they wait.
+**What it cost.** The Sightengine free tier is 500 images a month, and every picture spent one of
+them whether or not it was ever in doubt. The uploader got no feedback while they waited.
 
-**How it came to be this way.** The Phase 4 moderation design had five parts and four of them
+**How it came to be that way.** The Phase 4 moderation design had five parts and four of them
 shipped in February: the Sightengine scan in `UploadController`, the `app_settings` and
 `upload_flags` tables, the admin review routes, and the flags tab in `AdminPanel.jsx`. The fifth,
-the check in the browser, was never built - it was the fourth bullet of five in a section labelled
-"planned", so nobody read it as outstanding work. When this card was written, the package that
-design named - `@tensorflow-models/nsfwjs` - appeared nowhere in `package.json` or `resources/js`.
+the check in the browser, had not been built - it was the fourth bullet of five in a section
+labelled "planned", so nobody read it as outstanding work. When this card was written, the package
+that design named - `@tensorflow-models/nsfwjs` - appeared nowhere in `package.json` or
+`resources/js`. The check has since been built as `resources/js/lib/nsfwScan.js`; `## Comments`
+records how, and what review still found open.
 
 ## Links
 
 **Relates to**
-- `0002` - that card owns `HANDOVER.md`, which describes this pre-scan as planned and names a
-  package that does not exist on npm; the two have to end up saying the same thing.
+- `0002` - that card rewrote `HANDOVER.md`'s moderation section. When this card was raised the
+  handover called this pre-scan planned and named a package that does not exist on npm; it now says
+  the pre-scan is built and sends the reader here for its open findings.
 - `0003` - proves the server-side scan this one sits in front of, against a real Sightengine
   account. Anything that changes what the server does changes what that check is testing.
 

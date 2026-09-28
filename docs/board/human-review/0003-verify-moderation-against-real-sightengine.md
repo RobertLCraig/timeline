@@ -11,11 +11,14 @@ with its own expected result:
 2. Upload an ordinary family photo. Pass: it goes live and no flag appears in Admin, Flagged
    Uploads. A flag here means the threshold is set too low to be usable.
 3. Upload something the model should score high on. Pass: the event still saves, and the image
-   appears in Flagged Uploads with a score. Then click Quarantine. Pass: the event's `image_url`
-   is nulled and the file has moved to `storage/quarantine/`.
+   appears in Flagged Uploads with a score. Then click Quarantine. Expected: the flag moves to the
+   quarantined filter, and the event's `image_url` and the file are **not** touched -
+   `AdminController::reviewFlag` records the decision and nothing else (see `0002` under
+   `## Links`). So criterion #3 fails as written. Record what you saw; do not count it as a fault in
+   the scan.
 
-**Pass** is all three steps, plus criterion #4: break the credentials on purpose and confirm the
-upload still succeeds with a warning in the log.
+**Pass** is steps 1 and 2, the flag and score in step 3, plus criterion #4: break the credentials on
+purpose and confirm the upload still succeeds with a warning in the log.
 
 **Fail** at step 2 means the threshold is set too low to be usable, which is a config change rather
 than a defect. Say the score you saw.
