@@ -31,6 +31,9 @@ Building the pre-scan. That is card `0001`, linked above.
 - [x] #2 THE HANDOVER SHALL NOT list any moderation item as planned except the client-side pre-scan,
       which SHALL point at card 0001 rather than restating its design.
 - [x] #3 THE "Future Improvements" list SHALL be replaced by a pointer to the board.
+- [ ] #4 THE HANDOVER SHALL name `tests/Feature/UploadScanTest.php` as the evidence for the server
+      scan and its threshold, and SHALL call only the failure path in `UploadController::store`
+      unobserved, rather than calling all three "as-written rather than as-observed".
 <!-- AC:END -->
 
 ## Tasks
@@ -140,3 +143,5 @@ VERDICT: defect
 
 
 **2026-08-29** The reviewer returned this card and its finding is the last review entry at the bottom of ## Direction. The loop moved it from todo/ to human-review/ because it has bounced 1 time between todo and ai-review, all 3 criteria ticked. THE BUILDER COULD NOT ACT ON THAT FINDING. A reviewer never unticks a criterion - it is forbidden from editing acceptance at all - so the card came back with 3 of 3 criteria still ticked, every session found nothing open to do, and the loop promoted it again on the boxes. Untick what the reviewer disproved and move it back to todo/, or say here why the finding is wrong.
+
+**2026-09-28** Manager pass: reopened with new criterion #4 because the review's breakage finding still holds. `HANDOVER.md`, "Admin review queue", still says the scan, the threshold and the failure path "are as-written rather than as-observed", while `UploadScanTest::test_an_allowed_upload_is_still_scanned_server_side` and `test_an_image_over_the_threshold_is_flagged_for_review` observe the first two against a faked Sightengine. Only the `catch` in `UploadController::store` is untested.
