@@ -13,11 +13,9 @@ with its own expected result:
    Flags**. A flag here means the threshold is set too low to be usable. Missing credentials also
    give no flag, so this pass only counts once step 3 has passed.
 3. Upload something the model should score high on. Pass: the event still saves, and the image
-   appears in Content Flags with a score. Then click Quarantine. Expected: the flag moves to the
-   quarantined filter, and the event's `image_url` and the file are **not** touched -
-   `AdminController::reviewFlag` records the decision and nothing else (see `0002` under
-   `## Links`). So criterion #3 fails as written. Record what you saw; do not count it as a fault in
-   the scan.
+   appears in Content Flags with a score. Then click Quarantine. Pass: the flag moves to the
+   quarantined filter, and the event's picture is still there. That is criterion #3, which now says
+   what `AdminController::reviewFlag` does: it records the decision and touches nothing else.
 
 **Pass** is steps 1 and 2, the flag and score in step 3, plus criterion #4: break the credentials on
 purpose and confirm the upload still succeeds with a warning in the log.
@@ -61,8 +59,12 @@ does.
       Sightengine score against it.
 - [ ] #2 WHEN an image scores above the configured threshold, THE APP SHALL create an `upload_flags`
       row and show it in Admin, Content Flags.
-- [ ] #3 WHEN a flagged upload is quarantined, THE EVENT'S `image_url` SHALL be null and the file
-      SHALL be under `storage/quarantine/`.
+- [ ] #3 WHEN a flagged upload is quarantined, THE FLAG SHALL move to the quarantined filter with
+      the reviewer and time recorded, and the event's `image_url` and the file SHALL be untouched.
+      Rewritten 2026-09-30 to what `AdminController::reviewFlag` does: it updates the flag's
+      status, reviewer and time, writes an audit row, and nothing else (card `0002`). The old
+      wording (null `image_url`, file under `storage/quarantine/`) described code that does not
+      exist, so it could only ever fail.
 - [ ] #4 WHERE the Sightengine call fails, THE UPLOAD SHALL still succeed and a warning SHALL appear
       in the log, so the fallback is proved rather than assumed.
 <!-- AC:END -->
