@@ -69,3 +69,12 @@ wrapper is a second product and the API it would wrap is already usable from a p
 <!-- The card's thread, appended by ProgressBoard. Append-only: entries are added, never edited or removed. An entry beginning **Decided:** is an answer, and that is what a decision card exits on. -->
 
 **2026-08-29** The loop moved this card from todo/ to human-review/. 2 takes in a row ended with it still in in-progress/, and the last one said: `made no progress: 3 of 3 still open, exactly as this take found it`. What this card is waiting for is not another session. bin/work-card.ps1 counts those takes out of storage/logs/work-card.log, and will start it again as soon as a person has moved it back to todo/.
+
+**2026-10-04** RESULT: done
+TOUCHED: five new cards, one per piece of ranked work or open question, numbered in the ranked order.
+0009 - several photos on one event (ranked 1st); keeps POST /api/upload unchanged so 0003's check is not disturbed.
+0010 - email an invite code to a person (ranked 2nd); built and tested with Mail::fake, goes live once 0013 question 1 is answered.
+0011 - comments on an event that appear without a reload (ranked 3rd); polling, because shared hosting cannot hold a socket open.
+0012 - download a whole timeline and load it back (ranked 4th); zip of JSON plus photos, re-import is idempotent through import_hash.
+0013 - decision: (1) does production mail arrive today, and if not a Hostinger mailbox or a sending service; (2) the phone app (ranked 5th) as React Native, an installable website, or dropped. No feature card for the phone app until that is answered.
+Note: this card said invite email would be the app's first outbound mail. It is not: User implements MustVerifyEmail, so sign-up verification mail already exists.
