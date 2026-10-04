@@ -35,17 +35,22 @@ export function blockedClass(predictions, threshold = NSFW_THRESHOLD) {
 
 let modelPromise = null;
 
-/** Loads MobileNetV2 once, lazily. Only this model is bundled — not all three. */
-function loadModel() {
+/** Only MobileNetV2 is bundled — not all three. */
+function importMobileNetV2() {
+    return Promise.all([
+        import('nsfwjs/core'),
+        import('nsfwjs/models/mobilenet_v2'),
+    ]).then(([{ load }, { MobileNetV2Model }]) =>
+        load('MobileNetV2', { modelDefinitions: [MobileNetV2Model] })
+    );
+}
+
+/** Loads the model once, lazily. `importModel` is injectable for tests. */
+export function loadModel(importModel = importMobileNetV2, timeoutMs = MODEL_LOAD_TIMEOUT_MS) {
     if (!modelPromise) {
-        modelPromise = Promise.all([
-            import('nsfwjs/core'),
-            import('nsfwjs/models/mobilenet_v2'),
-        ]).then(([{ load }, { MobileNetV2Model }]) =>
-            load('MobileNetV2', { modelDefinitions: [MobileNetV2Model] })
-        );
-        // A failed load must not be cached, or one bad network moment disables
-        // the pre-scan for the rest of the session.
+        modelPromise = withTimeout(importModel(), timeoutMs);
+        // A failed or stalled load must not be cached, or one bad network moment
+        // disables (or slows) the pre-scan for the rest of the session.
         modelPromise.catch(() => { modelPromise = null; });
     }
     return modelPromise;

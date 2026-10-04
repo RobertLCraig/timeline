@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { blockedClass, scanImageFile, checksEnabledFrom, NSFW_THRESHOLD } from './nsfwScan.js';
+import { blockedClass, scanImageFile, checksEnabledFrom, loadModel, NSFW_THRESHOLD } from './nsfwScan.js';
 
 test('blocks a picture scoring over the threshold', () => {
     const predictions = [
@@ -38,6 +38,17 @@ test('allows the upload when the model load stalls', { timeout: 2000 }, async ()
 
     assert.equal(await scanImageFile(null, { load, timeoutMs: 50 }), null);
     assert.equal(loads, 1, 'the model load was never attempted, so its stall was not what was caught');
+});
+
+test('a stalled model load is not reused by the next pick', { timeout: 2000 }, async () => {
+    let imports = 0;
+    const stall = () => { imports++; return new Promise(() => {}); };
+
+    loadModel(stall, 50).catch(() => {});
+    await new Promise(resolve => setTimeout(resolve, 100));
+    loadModel(stall, 50).catch(() => {});
+
+    assert.equal(imports, 2, 'the second pick reused the stalled load instead of starting a fresh one');
 });
 
 test('reads the admin switch from the settings response', async () => {
