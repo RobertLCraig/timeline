@@ -2,9 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Group;
 use Closure;
 use Illuminate\Http\Request;
-use App\Models\Group;
 
 class EnsureGroupRole
 {
@@ -17,27 +17,29 @@ class EnsureGroupRole
         $slug = $request->route('slug');
         $group = Group::where('slug', $slug)->first();
 
-        if (!$group) {
+        if (! $group) {
             return response()->json(['message' => 'Group not found.'], 404);
         }
 
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Authentication required.'], 401);
         }
 
         // Super admins bypass group role checks
         if ($user->isSuperAdmin()) {
             $request->attributes->set('group', $group);
+
             return $next($request);
         }
 
         $memberRole = $group->getMemberRole($user->id);
-        if (!$memberRole || !in_array($memberRole, $roles)) {
+        if (! $memberRole || ! in_array($memberRole, $roles)) {
             return response()->json(['message' => 'Insufficient group permissions.'], 403);
         }
 
         $request->attributes->set('group', $group);
+
         return $next($request);
     }
 }

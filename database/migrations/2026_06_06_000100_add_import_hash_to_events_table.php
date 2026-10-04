@@ -4,7 +4,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     /**
      * Adds an optional `import_hash` to events so bulk importers (e.g. the
      * photo-import pipeline) can be re-run idempotently: a row's hash uniquely

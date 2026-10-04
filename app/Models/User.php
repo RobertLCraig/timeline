@@ -37,12 +37,12 @@ class User extends Authenticatable implements MustVerifyEmail
     protected function casts(): array
     {
         return [
-            'email_verified_at'      => 'datetime',
-            'password'               => 'hashed',
-            'dob'                    => 'date',
-            'mfa_enabled'            => 'boolean',
-            'failed_login_attempts'  => 'integer',
-            'locked_until'           => 'datetime',
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'dob' => 'date',
+            'mfa_enabled' => 'boolean',
+            'failed_login_attempts' => 'integer',
+            'locked_until' => 'datetime',
         ];
     }
 

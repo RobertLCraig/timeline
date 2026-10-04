@@ -25,12 +25,12 @@ class Event extends Model
      * 'private' is special-cased (not part of the hierarchy).
      */
     public const TIER_ORDER = [
-        'private'       => 0,
-        'family'        => 1,
+        'private' => 0,
+        'family' => 1,
         'close_friends' => 2,
-        'friends'       => 3,
+        'friends' => 3,
         'acquaintances' => 4,
-        'public'        => 5,
+        'public' => 5,
     ];
 
     protected $fillable = [
@@ -52,7 +52,7 @@ class Event extends Model
     protected function casts(): array
     {
         return [
-            'event_date'             => 'date',
+            'event_date' => 'date',
             'visibility_is_override' => 'boolean',
         ];
     }
@@ -83,7 +83,7 @@ class Event extends Model
             return true;
         }
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -99,6 +99,7 @@ class Event extends Model
             if ($this->created_by === $user->id) {
                 return true;
             }
+
             return $this->group->isAdminOrOwner($user->id);
         }
 
@@ -114,8 +115,9 @@ class Event extends Model
     public static function visibleTiersForGroupTier(string $groupTier): array
     {
         $groupOrder = self::TIER_ORDER[$groupTier] ?? self::TIER_ORDER['friends'];
+
         return collect(self::TIER_ORDER)
-            ->filter(fn($order, $tier) => $order >= $groupOrder && $tier !== 'private')
+            ->filter(fn ($order, $tier) => $order >= $groupOrder && $tier !== 'private')
             ->keys()
             ->toArray();
     }

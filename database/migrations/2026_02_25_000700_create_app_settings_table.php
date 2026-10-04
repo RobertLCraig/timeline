@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\Schema;
  * Key-value store for platform-wide admin-configurable settings.
  * Initial values seeded by the migration so the admin UI always has defaults.
  */
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
         Schema::create('app_settings', function (Blueprint $table) {

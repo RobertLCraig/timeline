@@ -6,19 +6,19 @@ use App\Models\Event;
 use App\Models\Group;
 use App\Models\GroupInvite;
 use App\Models\GroupMember;
-use App\Models\User;
 use App\Models\ReferralCode;
-use BaconQrCode\Renderer\ImageRenderer;
+use App\Models\User;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
+use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
-use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Validation\ValidationException;
 use Laravel\Socialite\Facades\Socialite;
 use PragmaRX\Google2FA\Google2FA;
@@ -27,6 +27,7 @@ class AuthController extends Controller
 {
     // Lock account for 15 minutes after this many consecutive failures
     private const MAX_ATTEMPTS = 10;
+
     private const LOCKOUT_MINUTES = 15;
 
     /**
@@ -35,18 +36,18 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'name'          => 'required|string|max:255',
-            'email'         => 'required|string|email|max:255|unique:users',
-            'password'      => 'required|string|min:8|confirmed',
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
             'referral_code' => 'nullable|string',
-            'invite_code'   => 'nullable|string',
+            'invite_code' => 'nullable|string',
         ]);
 
         // Validate referral code if provided
         if ($request->filled('referral_code')) {
             $referralCode = ReferralCode::where('code', $request->referral_code)->first();
 
-            if (!$referralCode || !$referralCode->isValid()) {
+            if (! $referralCode || ! $referralCode->isValid()) {
                 throw ValidationException::withMessages([
                     'referral_code' => ['Invalid or expired referral code.'],
                 ]);
@@ -59,7 +60,7 @@ class AuthController extends Controller
         if ($request->filled('invite_code')) {
             $invite = GroupInvite::where('code', $request->invite_code)->first();
 
-            if (!$invite || !$invite->isValid()) {
+            if (! $invite || ! $invite->isValid()) {
                 throw ValidationException::withMessages([
                     'invite_code' => ['Invalid or expired invite code.'],
                 ]);
@@ -70,9 +71,9 @@ class AuthController extends Controller
 
         // Create user
         $user = User::create([
-            'name'          => $request->name,
-            'email'         => $request->email,
-            'password'      => $request->password,
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => $request->password,
             'platform_role' => 'user',
         ]);
 
@@ -80,16 +81,16 @@ class AuthController extends Controller
         event(new Registered($user));
 
         // Increment referral code usage if used
-        if (!empty($referralCode)) {
+        if (! empty($referralCode)) {
             $referralCode->increment('current_uses');
         }
 
         // Auto-join group if invite code was provided
         if ($inviteGroup && $invite) {
             GroupMember::create([
-                'group_id'  => $inviteGroup->id,
-                'user_id'   => $user->id,
-                'role'      => 'member',
+                'group_id' => $inviteGroup->id,
+                'user_id' => $user->id,
+                'role' => 'member',
                 'joined_at' => now(),
             ]);
 
@@ -105,23 +106,23 @@ class AuthController extends Controller
                 ->where('user_id', $user->id)
                 ->exists();
 
-            if (!$alreadyMember) {
+            if (! $alreadyMember) {
                 GroupMember::create([
-                    'group_id'  => $demoGroup->id,
-                    'user_id'   => $user->id,
-                    'role'      => 'member',
+                    'group_id' => $demoGroup->id,
+                    'user_id' => $user->id,
+                    'role' => 'member',
                     'joined_at' => now(),
                 ]);
 
                 // Set demo as active only if no other group was joined via invite
                 $user->refresh();
-                if (!$user->active_group_id) {
+                if (! $user->active_group_id) {
                     $user->update(['active_group_id' => $demoGroup->id]);
                 }
             }
         }
 
-        $user->load(['groups' => fn($q) => $q->withPivot('role')]);
+        $user->load(['groups' => fn ($q) => $q->withPivot('role')]);
 
         Auth::login($user);
 
@@ -134,7 +135,7 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email'    => 'required|string|email',
+            'email' => 'required|string|email',
             'password' => 'required|string',
         ]);
 
@@ -148,11 +149,11 @@ class AuthController extends Controller
             ]);
         }
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (! $user || ! Hash::check($request->password, $user->password)) {
             // Track failed attempt
             if ($user) {
                 $attempts = $user->failed_login_attempts + 1;
-                $updates  = ['failed_login_attempts' => $attempts];
+                $updates = ['failed_login_attempts' => $attempts];
                 if ($attempts >= self::MAX_ATTEMPTS) {
                     $updates['locked_until'] = now()->addMinutes(self::LOCKOUT_MINUTES);
                 }
@@ -168,10 +169,10 @@ class AuthController extends Controller
         $user->update(['failed_login_attempts' => 0, 'locked_until' => null]);
 
         // Load groups for the client to determine redirect
-        $user->load(['groups' => fn($q) => $q->withPivot('role')]);
+        $user->load(['groups' => fn ($q) => $q->withPivot('role')]);
 
         // Ensure active_group_id is set if user has groups but no active group
-        if (!$user->active_group_id && $user->groups->isNotEmpty()) {
+        if (! $user->active_group_id && $user->groups->isNotEmpty()) {
             $firstGroup = $user->groups->first();
             $user->update(['active_group_id' => $firstGroup->id]);
             $user->active_group_id = $firstGroup->id;
@@ -180,6 +181,7 @@ class AuthController extends Controller
         // If MFA is enabled, store user ID in session and challenge the client
         if ($user->mfa_enabled) {
             $request->session()->put('mfa_user_id', $user->id);
+
             return response()->json(['mfa_required' => true]);
         }
 
@@ -208,7 +210,7 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         $user = $request->user();
-        $user->load(['groups' => fn($q) => $q->withPivot('role')]);
+        $user->load(['groups' => fn ($q) => $q->withPivot('role')]);
 
         return response()->json(['user' => $user]);
     }
@@ -219,17 +221,17 @@ class AuthController extends Controller
     public function updateProfile(Request $request)
     {
         $request->validate([
-            'name'       => 'sometimes|string|max:255',
-            'dob'        => 'sometimes|nullable|date',
+            'name' => 'sometimes|string|max:255',
+            'dob' => 'sometimes|nullable|date',
             'avatar_url' => 'sometimes|nullable|string|max:500',
         ]);
 
         $user = $request->user();
         $user->update($request->only(['name', 'dob', 'avatar_url']));
 
-        $user->fresh()->load(['groups' => fn($q) => $q->withPivot('role')]);
+        $user->fresh()->load(['groups' => fn ($q) => $q->withPivot('role')]);
 
-        return response()->json(['user' => $user->fresh()->load(['groups' => fn($q) => $q->withPivot('role')])]);
+        return response()->json(['user' => $user->fresh()->load(['groups' => fn ($q) => $q->withPivot('role')])]);
     }
 
     /**
@@ -249,13 +251,13 @@ class AuthController extends Controller
             ->where('user_id', $user->id)
             ->exists();
 
-        if (!$isMember) {
+        if (! $isMember) {
             return response()->json(['message' => 'You are not a member of this group.'], 403);
         }
 
         $user->update(['active_group_id' => $request->group_id]);
 
-        $user->load(['groups' => fn($q) => $q->withPivot('role')]);
+        $user->load(['groups' => fn ($q) => $q->withPivot('role')]);
 
         return response()->json(['user' => $user]);
     }
@@ -281,8 +283,8 @@ class AuthController extends Controller
     public function resetPassword(Request $request)
     {
         $request->validate([
-            'token'    => 'required|string',
-            'email'    => 'required|email',
+            'token' => 'required|string',
+            'email' => 'required|email',
             'password' => 'required|string|min:8|confirmed',
         ]);
 
@@ -290,9 +292,9 @@ class AuthController extends Controller
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function (User $user, string $password) {
                 $user->forceFill([
-                    'password'              => Hash::make($password),
+                    'password' => Hash::make($password),
                     'failed_login_attempts' => 0,
-                    'locked_until'          => null,
+                    'locked_until' => null,
                 ])->save();
 
                 // Invalidate all existing sessions on password reset — user must log in again
@@ -324,7 +326,7 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        $google2fa = new Google2FA();
+        $google2fa = new Google2FA;
         $secret = $google2fa->generateSecretKey(32);
 
         // Temporarily store secret until the user confirms with a valid code
@@ -338,7 +340,7 @@ class AuthController extends Controller
 
         $renderer = new ImageRenderer(
             new RendererStyle(200),
-            new SvgImageBackEnd()
+            new SvgImageBackEnd
         );
         $qrSvg = (new Writer($renderer))->writeString($otpUrl);
 
@@ -357,12 +359,12 @@ class AuthController extends Controller
         $request->validate(['code' => 'required|string|digits:6']);
 
         $secret = $request->session()->get('mfa_pending_secret');
-        if (!$secret) {
+        if (! $secret) {
             return response()->json(['message' => 'No pending MFA setup. Please start setup again.'], 422);
         }
 
-        $google2fa = new Google2FA();
-        if (!$google2fa->verifyKey($secret, $request->code)) {
+        $google2fa = new Google2FA;
+        if (! $google2fa->verifyKey($secret, $request->code)) {
             return response()->json(['message' => 'Invalid code. Please try again.'], 422);
         }
 
@@ -376,7 +378,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Two-factor authentication has been enabled.',
-            'user'    => $user->fresh()->load(['groups' => fn($q) => $q->withPivot('role')]),
+            'user' => $user->fresh()->load(['groups' => fn ($q) => $q->withPivot('role')]),
         ]);
     }
 
@@ -390,7 +392,7 @@ class AuthController extends Controller
 
         $user = $request->user();
 
-        if (!Hash::check($request->password, $user->password)) {
+        if (! Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
                 'password' => ['Incorrect password.'],
             ]);
@@ -400,7 +402,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Two-factor authentication has been disabled.',
-            'user'    => $user->fresh()->load(['groups' => fn($q) => $q->withPivot('role')]),
+            'user' => $user->fresh()->load(['groups' => fn ($q) => $q->withPivot('role')]),
         ]);
     }
 
@@ -413,26 +415,27 @@ class AuthController extends Controller
         $request->validate(['code' => 'required|string']);
 
         $userId = $request->session()->get('mfa_user_id');
-        if (!$userId) {
+        if (! $userId) {
             return response()->json(['message' => 'No active MFA challenge. Please log in again.'], 422);
         }
 
         $user = User::find($userId);
-        if (!$user || !$user->mfa_enabled || !$user->totp_secret) {
+        if (! $user || ! $user->mfa_enabled || ! $user->totp_secret) {
             $request->session()->forget('mfa_user_id');
+
             return response()->json(['message' => 'MFA state is invalid. Please log in again.'], 422);
         }
 
-        $google2fa = new Google2FA();
-        $secret    = decrypt($user->totp_secret);
+        $google2fa = new Google2FA;
+        $secret = decrypt($user->totp_secret);
 
-        if (!$google2fa->verifyKey($secret, $request->code)) {
+        if (! $google2fa->verifyKey($secret, $request->code)) {
             return response()->json(['message' => 'Invalid authentication code.'], 422);
         }
 
         $request->session()->forget('mfa_user_id');
 
-        $user->load(['groups' => fn($q) => $q->withPivot('role')]);
+        $user->load(['groups' => fn ($q) => $q->withPivot('role')]);
 
         Auth::login($user);
         $request->session()->regenerate();
@@ -462,7 +465,7 @@ class AuthController extends Controller
         try {
             $googleUser = Socialite::driver('google')->user();
         } catch (\Exception $e) {
-            return redirect(env('FRONTEND_URL', '/') . '?oauth_error=1');
+            return redirect(env('FRONTEND_URL', '/').'?oauth_error=1');
         }
 
         // Find existing user by Google ID, or by matching email
@@ -471,20 +474,20 @@ class AuthController extends Controller
 
         if ($user) {
             // Link Google ID if not already linked
-            if (!$user->google_id) {
+            if (! $user->google_id) {
                 $user->update([
-                    'google_id'         => $googleUser->getId(),
+                    'google_id' => $googleUser->getId(),
                     'email_verified_at' => $user->email_verified_at ?? now(),
                 ]);
             }
         } else {
             // Create a new account for this Google user
             $user = User::create([
-                'name'              => $googleUser->getName(),
-                'email'             => $googleUser->getEmail(),
-                'google_id'         => $googleUser->getId(),
-                'password'          => Hash::make(Str::random(40)),
-                'platform_role'     => 'user',
+                'name' => $googleUser->getName(),
+                'email' => $googleUser->getEmail(),
+                'google_id' => $googleUser->getId(),
+                'password' => Hash::make(Str::random(40)),
+                'platform_role' => 'user',
                 'email_verified_at' => now(),
             ]);
 
@@ -492,9 +495,9 @@ class AuthController extends Controller
             $demoGroup = Group::where('slug', 'demo')->first();
             if ($demoGroup) {
                 GroupMember::create([
-                    'group_id'  => $demoGroup->id,
-                    'user_id'   => $user->id,
-                    'role'      => 'member',
+                    'group_id' => $demoGroup->id,
+                    'user_id' => $user->id,
+                    'role' => 'member',
                     'joined_at' => now(),
                 ]);
                 $user->update(['active_group_id' => $demoGroup->id]);
@@ -517,15 +520,15 @@ class AuthController extends Controller
     {
         $user = User::findOrFail($id);
 
-        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
-            return redirect(env('FRONTEND_URL', '/') . '/profile?verified=invalid');
+        if (! hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+            return redirect(env('FRONTEND_URL', '/').'/profile?verified=invalid');
         }
 
-        if (!$user->hasVerifiedEmail()) {
+        if (! $user->hasVerifiedEmail()) {
             $user->markEmailAsVerified();
         }
 
-        return redirect(env('FRONTEND_URL', '/') . '/profile?verified=1');
+        return redirect(env('FRONTEND_URL', '/').'/profile?verified=1');
     }
 
     /**
@@ -553,39 +556,39 @@ class AuthController extends Controller
     public function export(Request $request)
     {
         $user = $request->user()->load([
-            'groups' => fn($q) => $q->withPivot('role', 'joined_at'),
+            'groups' => fn ($q) => $q->withPivot('role', 'joined_at'),
             'events',
         ]);
 
         $payload = [
             'exported_at' => now()->toIso8601String(),
             'profile' => [
-                'id'                => $user->id,
-                'name'              => $user->name,
-                'email'             => $user->email,
-                'dob'               => $user->dob?->toDateString(),
-                'platform_role'     => $user->platform_role,
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'dob' => $user->dob?->toDateString(),
+                'platform_role' => $user->platform_role,
                 'email_verified_at' => $user->email_verified_at?->toIso8601String(),
-                'mfa_enabled'       => $user->mfa_enabled,
-                'created_at'        => $user->created_at->toIso8601String(),
+                'mfa_enabled' => $user->mfa_enabled,
+                'created_at' => $user->created_at->toIso8601String(),
             ],
-            'groups' => $user->groups->map(fn($g) => [
-                'id'        => $g->id,
-                'name'      => $g->name,
-                'slug'      => $g->slug,
-                'role'      => $g->pivot->role,
+            'groups' => $user->groups->map(fn ($g) => [
+                'id' => $g->id,
+                'name' => $g->name,
+                'slug' => $g->slug,
+                'role' => $g->pivot->role,
                 'joined_at' => $g->pivot->joined_at,
             ])->values(),
-            'events' => $user->events->map(fn($e) => [
-                'id'                => $e->id,
-                'group_id'          => $e->group_id,
-                'title'             => $e->title,
-                'description'       => $e->description,
-                'event_date'        => $e->event_date?->toDateString(),
-                'category_id'       => $e->category_id,
-                'visibility'        => $e->visibility,
+            'events' => $user->events->map(fn ($e) => [
+                'id' => $e->id,
+                'group_id' => $e->group_id,
+                'title' => $e->title,
+                'description' => $e->description,
+                'event_date' => $e->event_date?->toDateString(),
+                'category_id' => $e->category_id,
+                'visibility' => $e->visibility,
                 'social_visibility' => $e->social_visibility,
-                'created_at'        => $e->created_at->toIso8601String(),
+                'created_at' => $e->created_at->toIso8601String(),
             ])->values(),
         ];
 
@@ -611,7 +614,7 @@ class AuthController extends Controller
         $user = $request->user();
 
         // Password-only accounts must confirm; Google-only accounts (no password) skip this
-        if ($user->password && !Hash::check($request->password, $user->password)) {
+        if ($user->password && ! Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
                 'password' => ['Incorrect password.'],
             ]);

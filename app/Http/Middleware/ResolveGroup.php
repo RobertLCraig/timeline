@@ -2,9 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Group;
 use Closure;
 use Illuminate\Http\Request;
-use App\Models\Group;
 
 class ResolveGroup
 {
@@ -17,11 +17,12 @@ class ResolveGroup
         $slug = $request->route('slug');
         $group = Group::where('slug', $slug)->first();
 
-        if (!$group) {
+        if (! $group) {
             return response()->json(['message' => 'Group not found.'], 404);
         }
 
         $request->attributes->set('group', $group);
+
         return $next($request);
     }
 }

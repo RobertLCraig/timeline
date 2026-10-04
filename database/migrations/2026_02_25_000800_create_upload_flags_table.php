@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\Schema;
  * Records uploads that were flagged by the NSFW content scanner.
  * Admins review flagged uploads and approve or quarantine them.
  */
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
         Schema::create('upload_flags', function (Blueprint $table) {

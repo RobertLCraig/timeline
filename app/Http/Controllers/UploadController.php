@@ -28,40 +28,40 @@ class UploadController extends Controller
         ]);
 
         $file = $request->file('image');
-        $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+        $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
 
         $uploadDir = public_path('uploads');
-        if (!is_dir($uploadDir)) {
+        if (! is_dir($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
 
         $file->move($uploadDir, $filename);
 
-        $url     = '/uploads/' . $filename;
+        $url = '/uploads/'.$filename;
         $flagged = false;
-        $flagId  = null;
+        $flagId = null;
 
         // ── NSFW scan (optional, skipped if disabled or unconfigured) ─────────
         if ($this->scanEnabled()) {
             try {
-                $result = $this->callSightengine(public_path('uploads/' . $filename));
+                $result = $this->callSightengine(public_path('uploads/'.$filename));
 
-                if (!empty($result['nudity'])) {
-                    $scores   = $result['nudity'];
+                if (! empty($result['nudity'])) {
+                    $scores = $result['nudity'];
                     $topScore = $this->topScore($scores);
                     $threshold = (float) AppSetting::get('nudity_threshold', '0.6');
 
                     if ($topScore >= $threshold) {
                         $flag = UploadFlag::create([
-                            'filename'         => $filename,
-                            'url'              => $url,
+                            'filename' => $filename,
+                            'url' => $url,
                             'uploader_user_id' => $request->user()?->id,
-                            'scores'           => $scores,
-                            'top_score'        => $topScore,
-                            'status'           => 'pending',
+                            'scores' => $scores,
+                            'top_score' => $topScore,
+                            'status' => 'pending',
                         ]);
                         $flagged = true;
-                        $flagId  = $flag->id;
+                        $flagId = $flag->id;
                     }
                 }
             } catch (\Throwable $e) {
@@ -71,10 +71,10 @@ class UploadController extends Controller
         }
 
         return response()->json([
-            'url'      => $url,
+            'url' => $url,
             'filename' => $filename,
-            'flagged'  => $flagged,
-            'flag_id'  => $flagId,
+            'flagged' => $flagged,
+            'flag_id' => $flagId,
         ], 201);
     }
 
@@ -111,8 +111,8 @@ class UploadController extends Controller
             file_get_contents($filePath),
             basename($filePath)
         )->post('https://api.sightengine.com/1.0/check.json', [
-            'models'     => 'nudity-2.0',
-            'api_user'   => config('services.sightengine.user'),
+            'models' => 'nudity-2.0',
+            'api_user' => config('services.sightengine.user'),
             'api_secret' => config('services.sightengine.secret'),
         ]);
 
@@ -127,12 +127,13 @@ class UploadController extends Controller
     private function topScore(array $nudityScores): float
     {
         $keys = ['sexual_activity', 'sexual_display', 'erotica', 'very_suggestive'];
-        $max  = 0.0;
+        $max = 0.0;
         foreach ($keys as $key) {
             if (isset($nudityScores[$key]) && (float) $nudityScores[$key] > $max) {
                 $max = (float) $nudityScores[$key];
             }
         }
+
         return $max;
     }
 }

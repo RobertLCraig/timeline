@@ -14,9 +14,13 @@ use Illuminate\Database\Eloquent\Model;
 class AppSetting extends Model
 {
     protected $table = 'app_settings';
+
     protected $primaryKey = 'key';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
+
     public $timestamps = false;
 
     protected $fillable = ['key', 'value'];
@@ -24,6 +28,7 @@ class AppSetting extends Model
     public static function get(string $key, mixed $default = null): mixed
     {
         $setting = static::find($key);
+
         return $setting ? $setting->value : $default;
     }
 

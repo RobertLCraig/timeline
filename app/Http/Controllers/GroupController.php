@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Group;
-use App\Models\GroupMember;
 use App\Models\GroupInvite;
+use App\Models\GroupMember;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -31,26 +31,26 @@ class GroupController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name'        => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
         ]);
 
         $group = Group::create([
-            'name'        => $request->name,
+            'name' => $request->name,
             'description' => $request->description,
-            'created_by'  => $request->user()->id,
+            'created_by' => $request->user()->id,
         ]);
 
         // Add creator as owner
         GroupMember::create([
             'group_id' => $group->id,
-            'user_id'  => $request->user()->id,
-            'role'     => 'owner',
+            'user_id' => $request->user()->id,
+            'role' => 'owner',
         ]);
 
         // Set as active group if user has no active group
         $user = $request->user();
-        if (!$user->active_group_id) {
+        if (! $user->active_group_id) {
             $user->update(['active_group_id' => $group->id]);
         }
 
@@ -69,7 +69,7 @@ class GroupController extends Controller
             ->withCount('events')
             ->first();
 
-        if (!$group) {
+        if (! $group) {
             return response()->json(['message' => 'Group not found.'], 404);
         }
 
@@ -85,7 +85,7 @@ class GroupController extends Controller
         }
 
         return response()->json([
-            'group'      => $group,
+            'group' => $group,
             'membership' => $membership,
         ]);
     }
@@ -98,8 +98,8 @@ class GroupController extends Controller
         $group = $request->attributes->get('group');
 
         $request->validate([
-            'name'            => 'sometimes|string|max:255',
-            'description'     => 'sometimes|nullable|string|max:1000',
+            'name' => 'sometimes|string|max:255',
+            'description' => 'sometimes|nullable|string|max:1000',
             'cover_image_url' => 'sometimes|nullable|string|max:500',
         ]);
 
@@ -137,12 +137,12 @@ class GroupController extends Controller
 
         $invite = GroupInvite::where('code', $request->invite_code)->first();
 
-        if (!$invite || !$invite->isValid()) {
+        if (! $invite || ! $invite->isValid()) {
             return response()->json(['message' => 'Invalid or expired invite code.'], 422);
         }
 
         $group = Group::withCount('members')->find($invite->group_id);
-        if (!$group) {
+        if (! $group) {
             return response()->json(['message' => 'Group not found.'], 404);
         }
 
@@ -155,16 +155,16 @@ class GroupController extends Controller
         }
 
         GroupMember::create([
-            'group_id'  => $group->id,
-            'user_id'   => $user->id,
-            'role'      => 'member',
+            'group_id' => $group->id,
+            'user_id' => $user->id,
+            'role' => 'member',
             'joined_at' => now(),
         ]);
 
         $invite->increment('current_uses');
 
         $wasSetActive = false;
-        if (!$user->active_group_id) {
+        if (! $user->active_group_id) {
             $user->update(['active_group_id' => $group->id]);
             $wasSetActive = true;
         }
@@ -172,8 +172,8 @@ class GroupController extends Controller
         $group->loadCount('members');
 
         return response()->json([
-            'message'    => 'Successfully joined the group.',
-            'group'      => $group,
+            'message' => 'Successfully joined the group.',
+            'group' => $group,
             'set_active' => $wasSetActive,
         ]);
     }
@@ -188,7 +188,7 @@ class GroupController extends Controller
         ]);
 
         $group = Group::where('slug', $slug)->first();
-        if (!$group) {
+        if (! $group) {
             return response()->json(['message' => 'Group not found.'], 404);
         }
 
@@ -206,15 +206,15 @@ class GroupController extends Controller
             ->where('group_id', $group->id)
             ->first();
 
-        if (!$invite || !$invite->isValid()) {
+        if (! $invite || ! $invite->isValid()) {
             return response()->json(['message' => 'Invalid or expired invite code.'], 422);
         }
 
         // Add member
         GroupMember::create([
             'group_id' => $group->id,
-            'user_id'  => $request->user()->id,
-            'role'     => 'member',
+            'user_id' => $request->user()->id,
+            'role' => 'member',
         ]);
 
         $invite->increment('current_uses');
@@ -222,14 +222,14 @@ class GroupController extends Controller
         // Set as active group if user has no active group
         $user = $request->user();
         $wasSetActive = false;
-        if (!$user->active_group_id) {
+        if (! $user->active_group_id) {
             $user->update(['active_group_id' => $group->id]);
             $wasSetActive = true;
         }
 
         return response()->json([
-            'message'    => 'Successfully joined the group.',
-            'group'      => $group,
+            'message' => 'Successfully joined the group.',
+            'group' => $group,
             'set_active' => $wasSetActive,
         ]);
     }
@@ -240,7 +240,7 @@ class GroupController extends Controller
     public function leave(Request $request, string $slug)
     {
         $group = Group::where('slug', $slug)->first();
-        if (!$group) {
+        if (! $group) {
             return response()->json(['message' => 'Group not found.'], 404);
         }
 
@@ -250,7 +250,7 @@ class GroupController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        if (!$membership) {
+        if (! $membership) {
             return response()->json(['message' => 'You are not a member of this group.'], 422);
         }
 
@@ -284,12 +284,12 @@ class GroupController extends Controller
             ->get()
             ->map(function ($user) {
                 return [
-                    'id'         => $user->id,
-                    'name'       => $user->name,
-                    'email'      => $user->email,
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
                     'avatar_url' => $user->avatar_url,
-                    'role'       => $user->pivot->role,
-                    'joined_at'  => $user->pivot->joined_at,
+                    'role' => $user->pivot->role,
+                    'joined_at' => $user->pivot->joined_at,
                 ];
             });
 
@@ -311,7 +311,7 @@ class GroupController extends Controller
             ->where('user_id', $userId)
             ->first();
 
-        if (!$membership) {
+        if (! $membership) {
             return response()->json(['message' => 'Member not found.'], 404);
         }
 
@@ -335,7 +335,7 @@ class GroupController extends Controller
             ->where('user_id', $userId)
             ->first();
 
-        if (!$membership) {
+        if (! $membership) {
             return response()->json(['message' => 'Member not found.'], 404);
         }
 
@@ -356,15 +356,15 @@ class GroupController extends Controller
         $group = $request->attributes->get('group');
 
         $request->validate([
-            'max_uses'   => 'sometimes|integer|min:1|max:100',
+            'max_uses' => 'sometimes|integer|min:1|max:100',
             'expires_at' => 'sometimes|nullable|date|after:now',
         ]);
 
         $invite = GroupInvite::create([
-            'group_id'   => $group->id,
-            'code'       => strtoupper(Str::random(8)),
+            'group_id' => $group->id,
+            'code' => strtoupper(Str::random(8)),
             'created_by' => $request->user()->id,
-            'max_uses'   => $request->input('max_uses', 1),
+            'max_uses' => $request->input('max_uses', 1),
             'expires_at' => $request->expires_at,
         ]);
 
@@ -397,7 +397,7 @@ class GroupController extends Controller
             ->where('group_id', $group->id)
             ->first();
 
-        if (!$invite) {
+        if (! $invite) {
             return response()->json(['message' => 'Invite not found.'], 404);
         }
 

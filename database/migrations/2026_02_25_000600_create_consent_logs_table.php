@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\Schema;
  * Consent logging for GDPR compliance.
  * Logs when users accept cookies or Terms of Service.
  */
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
         Schema::create('consent_logs', function (Blueprint $table) {

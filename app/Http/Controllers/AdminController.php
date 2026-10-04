@@ -50,7 +50,7 @@ class AdminController extends Controller
     public function deleteReferralCode(Request $request, int $id)
     {
         $code = ReferralCode::find($id);
-        if (!$code) {
+        if (! $code) {
             return response()->json(['message' => 'Referral code not found.'], 404);
         }
 
@@ -84,7 +84,7 @@ class AdminController extends Controller
         ]);
 
         $user = User::find($id);
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'User not found.'], 404);
         }
 
@@ -97,7 +97,7 @@ class AdminController extends Controller
 
         AuditLog::record($request->user(), 'user.role_changed', $user, [
             'from' => $previousRole,
-            'to'   => $request->platform_role,
+            'to' => $request->platform_role,
         ]);
 
         return response()->json(['user' => $user]);
@@ -114,7 +114,7 @@ class AdminController extends Controller
         return response()->json([
             'settings' => [
                 'nsfw_checks_enabled' => AppSetting::get('nsfw_checks_enabled', '0'),
-                'nudity_threshold'    => AppSetting::get('nudity_threshold', '0.6'),
+                'nudity_threshold' => AppSetting::get('nudity_threshold', '0.6'),
             ],
         ]);
     }
@@ -127,7 +127,7 @@ class AdminController extends Controller
     {
         $request->validate([
             'nsfw_checks_enabled' => 'sometimes|in:0,1',
-            'nudity_threshold'    => 'sometimes|numeric|min:0|max:1',
+            'nudity_threshold' => 'sometimes|numeric|min:0|max:1',
         ]);
 
         $allowed = ['nsfw_checks_enabled', 'nudity_threshold'];
@@ -142,7 +142,7 @@ class AdminController extends Controller
         return response()->json([
             'settings' => [
                 'nsfw_checks_enabled' => AppSetting::get('nsfw_checks_enabled'),
-                'nudity_threshold'    => AppSetting::get('nudity_threshold'),
+                'nudity_threshold' => AppSetting::get('nudity_threshold'),
             ],
         ]);
     }
@@ -164,10 +164,10 @@ class AdminController extends Controller
 
         return response()->json([
             'flags' => $flags->items(),
-            'meta'  => [
-                'total'        => $flags->total(),
+            'meta' => [
+                'total' => $flags->total(),
                 'current_page' => $flags->currentPage(),
-                'last_page'    => $flags->lastPage(),
+                'last_page' => $flags->lastPage(),
             ],
         ]);
     }
@@ -183,19 +183,19 @@ class AdminController extends Controller
         ]);
 
         $flag = UploadFlag::find($id);
-        if (!$flag) {
+        if (! $flag) {
             return response()->json(['message' => 'Flag not found.'], 404);
         }
 
         $flag->update([
-            'status'      => $request->status,
+            'status' => $request->status,
             'reviewed_by' => $request->user()->id,
             'reviewed_at' => now(),
         ]);
 
-        AuditLog::record($request->user(), 'upload_flag.' . $request->status, $flag, [
+        AuditLog::record($request->user(), 'upload_flag.'.$request->status, $flag, [
             'flag_id' => $flag->id,
-            'url'     => $flag->url,
+            'url' => $flag->url,
         ]);
 
         return response()->json(['flag' => $flag->fresh(['uploader:id,name,email', 'reviewer:id,name'])]);

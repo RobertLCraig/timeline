@@ -20,10 +20,10 @@ class UploadFlag extends Model
     ];
 
     protected $casts = [
-        'scores'      => 'array',
-        'top_score'   => 'float',
+        'scores' => 'array',
+        'top_score' => 'float',
         'reviewed_at' => 'datetime',
-        'created_at'  => 'datetime',
+        'created_at' => 'datetime',
     ];
 
     public function uploader()

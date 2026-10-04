@@ -30,16 +30,16 @@ class VisibilityController extends Controller
 
         // System-level defaults for categories without user customisation
         $systemDefaults = [
-            'Birth'       => 'family',
-            'Wedding'     => 'family',
+            'Birth' => 'family',
+            'Wedding' => 'family',
             'Anniversary' => 'family',
-            'Health'      => 'close_friends',
-            'Graduation'  => 'friends',
-            'Career'      => 'friends',
-            'Move'        => 'friends',
-            'Travel'      => 'friends',
-            'Milestone'   => 'friends',
-            'Other'       => 'friends',
+            'Health' => 'close_friends',
+            'Graduation' => 'friends',
+            'Career' => 'friends',
+            'Move' => 'friends',
+            'Travel' => 'friends',
+            'Milestone' => 'friends',
+            'Other' => 'friends',
         ];
 
         $result = $categories->map(function ($cat) use ($userDefaults, $systemDefaults) {
@@ -48,12 +48,12 @@ class VisibilityController extends Controller
                 ?? 'friends';
 
             return [
-                'id'              => $cat->id,
-                'name'            => $cat->name,
-                'icon'            => $cat->icon,
-                'color'           => $cat->color,
+                'id' => $cat->id,
+                'name' => $cat->name,
+                'icon' => $cat->icon,
+                'color' => $cat->color,
                 'visibility_tier' => $tier,
-                'is_customised'   => $userDefaults->has($cat->id),
+                'is_customised' => $userDefaults->has($cat->id),
             ];
         });
 
@@ -101,12 +101,12 @@ class VisibilityController extends Controller
 
         $result = $memberships->map(function ($m) use ($userTiers) {
             return [
-                'group_id'        => $m->group_id,
-                'group_name'      => $m->group->name ?? '',
-                'group_slug'      => $m->group->slug ?? '',
-                'role'            => $m->role,
+                'group_id' => $m->group_id,
+                'group_name' => $m->group->name ?? '',
+                'group_slug' => $m->group->slug ?? '',
+                'role' => $m->role,
                 'visibility_tier' => $userTiers->get($m->group_id, 'friends'),
-                'is_customised'   => $userTiers->has($m->group_id),
+                'is_customised' => $userTiers->has($m->group_id),
             ];
         });
 
@@ -128,7 +128,7 @@ class VisibilityController extends Controller
             ->where('group_id', $groupId)
             ->exists();
 
-        if (!$isMember) {
+        if (! $isMember) {
             return response()->json(['message' => 'You are not a member of this group.'], 403);
         }
 

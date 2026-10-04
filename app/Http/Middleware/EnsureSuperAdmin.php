@@ -9,9 +9,10 @@ class EnsureSuperAdmin
 {
     public function handle(Request $request, Closure $next)
     {
-        if (!$request->user() || !$request->user()->isSuperAdmin()) {
+        if (! $request->user() || ! $request->user()->isSuperAdmin()) {
             return response()->json(['message' => 'Forbidden. Super admin access required.'], 403);
         }
+
         return $next($request);
     }
 }

@@ -20,7 +20,7 @@ class AuditLog extends Model
     ];
 
     protected $casts = [
-        'payload'    => 'array',
+        'payload' => 'array',
         'created_at' => 'datetime',
     ];
 
@@ -35,13 +35,13 @@ class AuditLog extends Model
         array $payload = []
     ): self {
         return static::create([
-            'actor_id'    => $actor?->id,
-            'action'      => $action,
+            'actor_id' => $actor?->id,
+            'action' => $action,
             'target_type' => $target ? class_basename($target) : null,
-            'target_id'   => $target?->getKey(),
-            'payload'     => $payload ?: null,
-            'ip'          => Request::ip(),
-            'created_at'  => now(),
+            'target_id' => $target?->getKey(),
+            'payload' => $payload ?: null,
+            'ip' => Request::ip(),
+            'created_at' => now(),
         ]);
     }
 

@@ -20,7 +20,7 @@ class Group extends Model
         parent::boot();
         static::creating(function ($group) {
             if (empty($group->slug)) {
-                $group->slug = Str::slug($group->name) . '-' . Str::random(6);
+                $group->slug = Str::slug($group->name).'-'.Str::random(6);
             }
         });
     }
@@ -54,12 +54,14 @@ class Group extends Model
     public function getMemberRole(int $userId): ?string
     {
         $member = $this->memberships()->where('user_id', $userId)->first();
+
         return $member?->role;
     }
 
     public function isAdminOrOwner(int $userId): bool
     {
         $role = $this->getMemberRole($userId);
+
         return in_array($role, ['owner', 'admin']);
     }
 }
