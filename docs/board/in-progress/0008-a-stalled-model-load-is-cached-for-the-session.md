@@ -23,7 +23,7 @@ The threshold, the admin switch, the settings fetch, or anything server-side.
 
 ## Acceptance
 <!-- AC:BEGIN -->
-- [ ] WHEN a model load stalls past its timeout, THE APP SHALL drop the cached load, so the next photo
+- [x] WHEN a model load stalls past its timeout, THE APP SHALL drop the cached load, so the next photo
       pick starts a fresh load. proves: `a stalled model load is not reused by the next pick`
 <!-- AC:END -->
 
@@ -39,3 +39,11 @@ so the existing `.catch(() => { modelPromise = null; })` also fires on a stall. 
 twice in the test and assert it started two loads.
 
 ## Comments
+
+**2026-10-05** RESULT: done
+TESTS: +1 new, all green
+TOUCHED: resources/js/lib/nsfwScan.js
+resources/js/lib/nsfwScan.test.js
+OUT-OF-SCOPE: none
+
+Followed the Plan: the 15 s timeout now wraps the import inside loadModel(), so the existing .catch clears the cached modelPromise on a stall as well as a rejection. loadModel is exported with an injectable importModel and timeoutMs so the test can feed it a stalling import. Test `a stalled model load is not reused by the next pick` was watched red first (1 !== 2: the second pick reused the stalled load), then green. scanImageFile keeps its own withTimeout for injected loaders. npm run test:js 9/9, php artisan test 37/37, pint pass. vendor\bin\pest.bat does not exist in this tree, so the PHP suite ran via artisan test. public/build was not rebuilt and no browser check was done: Herd serves C:\Dev\timeline, so this still needs npm run build and a browser check after merge.
