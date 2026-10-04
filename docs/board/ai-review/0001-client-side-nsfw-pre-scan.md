@@ -39,7 +39,7 @@ card sits in front of them, not over them.
 <!-- AC:BEGIN -->
 - [x] WHEN a user selects an image whose `Porn`, `Hentai` or `Sexy` score exceeds 0.7, THE APP SHALL
       block the upload in the browser and say why, before any request is sent.
-- [ ] WHEN a user selects an image scoring below the threshold, THE APP SHALL upload it normally and
+- [x] WHEN a user selects an image scoring below the threshold, THE APP SHALL upload it normally and
       the server-side scan SHALL still run, so the client check is a filter and never the only one.
       Unticked 2026-09-29: the mount effect in `EventForm.jsx` sets `checksEnabled.current` from
       `api.get('/upload/settings')` with no timeout, and `fetch` in `lib/api.js` has no abort, so a
@@ -321,3 +321,28 @@ bound the settings fetch the way `scanImageFile()` bounds the model load, fallin
 form. Worth fixing on the way, not a criterion: `loadModel()` in `nsfwScan.js` clears `modelPromise`
 only when the load rejects, and `withTimeout` rejects its own race rather than the cached promise, so
 after one stalled load every later pick waits the full 15 s again.
+
+**2026-10-04** RESULT: done
+TESTS: +2 new, all green
+TOUCHED: resources/js/lib/nsfwScan.js
+resources/js/lib/nsfwScan.test.js
+resources/js/pages/EventForm.jsx
+public/build/manifest.json
+public/build/assets/main-CMcEeu-h.js (replaces main-BBXJOO_O.js)
+public/build/assets/mobilenet_v2-KJYBe5cR.js (replaces mobilenet_v2-DvSIPaG7.js)
+docs/board/todo/0008-a-stalled-model-load-is-cached-for-the-session.md
+OUT-OF-SCOPE: 0008
+
+Closed the reopened second criterion. The settings fetch is now bounded the way the model load is. New `checksEnabledFrom(request, timeoutMs = 5000)` in `nsfwScan.js` races the `/upload/settings` request against `withTimeout()` and reads a failure or a stall as `false`, so the server scan decides and `handleImageChange` gets past its await. `EventForm.jsx` now calls it instead of its own unbounded `.then/.catch`.
+
+Watched red: `a settings request that never settles still unlocks the form` was first run against a `checksEnabledFrom` that copied the old EventForm code exactly (no timeout). It failed with 'test timed out after 2000ms' because the await never returned. That is the reviewer's finding. With the timeout it passes in about 60 ms. The second new test, `reads the admin switch from the settings response`, covers true, false and a rejected request.
+
+Assumed: 5 s is my figure for the settings timeout. Nothing in the repository names one. `withTimeout`'s error text changed from 'model did not load' to 'no answer' because it now serves both waits.
+
+Not fixed, raised as 0008: a stalled model load stays cached in `loadModel()`, so every later pick waits 15 s again. The card called it worth fixing on the way, not a criterion. A test for it needs the default loader made stallable, which is a change of its own.
+
+Not covered by a test: the one line in `EventForm.jsx` that passes `api.get('/upload/settings')` to the helper. There is no React test harness here. It still needs a browser check from C:\Dev\timeline after merge: throttle or block `/api/upload/settings` in DevTools, pick a photo, and confirm the picker unlocks within about 5 s and the photo uploads.
+
+Criteria 1, 3 and 4 were met by earlier runs. Their tests still pass here, so they stay listed.
+
+Suite: `.\vendor\bin\phpunit.bat` 37 tests, 92 assertions, green (`pest.bat` does not exist in this project). `npm run test:js` 8 tests, green. `pint --test --dirty` had no PHP to check; no PHP changed. `npm run build` rebuilt `public/build/`.
