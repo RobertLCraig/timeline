@@ -357,3 +357,60 @@ Rebuilt on what main holds now. Every criterion is `proves: none`, so no test wa
 - **Out of scope, card `0007`:** `HANDOVER.md` links `docs/board/human-review/` for `0001`, which moved to `todo/` on 2026-09-29.
 
 Suite: `.\vendor\bin\phpunit.bat` 37 tests, 92 assertions, green (`pest.bat` does not exist here). Pint not run: no PHP changed, and the old drift is card `0006`. Markdown only, so no browser check applies.
+
+### 2026-10-04 review (v20261004151504-83ef)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 38s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+I checked each criterion against the cards and the code. I could not break any of them.
+
+- **#1:** On each open card, `## Why` states the problem and names no fix. On `0003`, the ask sits above `## Why`. The README says that a `human-review/` card must put it there.
+- **#2:** `0004` is the only card with `## Options`. Its "Why it needs you" line names local knowledge as the reason.
+- **#3:** Each card that names another card has a `## Links` entry. Each entry gives a type and a reason.
+- **#4:** No card has `needs:` or `Blocked by`. So there is nothing to match, and the criterion holds.
+- **#5:** Only `0003`'s `0002` link line changed in this round. `## Comments` was not touched.
+- **#6:** The builder ran the count on a copy of the board. It read `0 6`.
+- **#7:**
+  - `0001`'s `## Why` is in the past tense. It says `nsfwScan.js` is now built.
+  - `0001`'s `0002` link says "planned" only about the time the card was raised.
+  - `0003`'s ask no longer gives a nulled `image_url` as the pass. This matches `AdminController::reviewFlag`, which only updates the status, the reviewer and the time, and writes an audit row.
+  - The ask names "🚩 Content Flags", "⚙️ NSFW Settings", "Settings saved." and the On/Off toggle. All four are in `AdminPanel.jsx` (`NsfwSettingsTab` and `ContentFlagsTab`).
+  - The `0002` link no longer says criterion #3 will fail.
+
+VERDICT: sound
+
+**scope: sound**
+
+**scope: sound**
+
+The last build changed two things. I compared both against the fence in `## Not this card`.
+
+- **`0003` `## Links`, the `0002` line.** It no longer says criterion #3 "is expected to fail". It now says #3 was rewritten on 2026-09-30 to match what `AdminController::reviewFlag` does. That matches `0003`'s ask, step 3, which says the picture stays after Quarantine. The card now gives one answer, not two. Commit `165ba71` changed 3 lines on this card and nothing else.
+- **New card `0007`.** It is declared as `OUT-OF-SCOPE: 0007`. It moves no lane and does not edit `HANDOVER.md`, so it stays inside the fence.
+
+The git summary also lists `docs/board/README.md`, PHP, JS and `HANDOVER.md`. That work does not come from this card. The `README.md` changes are "sync the card convention from the canonical" commits. The code is card `0001`'s work, and `HANDOVER.md` is card `0002`'s. This card did not change the convention.
+
+The one earlier edit inside another card's `## Acceptance` was the tab label on `0003` #2. It was declared, and it changed only the label, not the meaning.
+
+`## Comments` on `0001` and `0003` were not touched. No criterion is disproved.
+
+VERDICT: sound
+
+**breakage: sound**
+
+I tried to break the latest fixes and could not.
+
+- **Card `0003`, `## What I need from you`.** Every label it names exists in `AdminPanel.jsx`. `NsfwSettingsTab` has "Enable NSFW checks", "Save Settings", "Settings saved." and the On/Off toggle. The tab buttons say "🚩 Content Flags" and "⚙️ NSFW Settings". `ContentFlagsTab` has the quarantined filter. The words "Flagged Uploads" and "unconfigured" are gone from every open card.
+- **Card `0003`, the `## Links` line for `0002`.** It now agrees with criterion #3, and #3 agrees with `AdminController::reviewFlag`, which only records the decision. The line no longer says #3 "will fail".
+- **Card `0001` (now in `todo/`).** `## Why` and its link to `0002` are in the past tense. Old comments further down still say `HANDOVER.md` calls the pre-scan "planned". Comments are append-only, so that is not a breach.
+- **Lane drift.** `HANDOVER.md` still points at `human-review/` for `0001`. That card is now in `todo/`. The builder logged this as out of scope and opened card `0007` for it. #7 covers cards, not the handover, so it does not reopen #7.
+- **Count.** I did not re-run `board:convention`. The builder's last count was 0 failing.
+
+The suite is green.
+
+VERDICT: sound
+
