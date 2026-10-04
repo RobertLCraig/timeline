@@ -342,3 +342,18 @@ Both review findings on #7 fixed. `proves: none`, so no test; the fix is prose o
 `.\vendor\bin\phpunit.bat` 37 tests, 92 assertions, green. Pint not rerun: no PHP changed, and the
 old drift is card `0006`. Markdown only, so no browser check applies.
 
+**2026-10-04** RESULT: done
+TESTS: +0 new, all green
+TOUCHED: docs/board/human-review/0003-verify-moderation-against-real-sightengine.md
+docs/board/todo/0007-handover-sends-the-reader-to-the-wrong-lane-for-0001.md
+OUT-OF-SCOPE: 0007
+
+Rebuilt on what main holds now. Every criterion is `proves: none`, so no test was written; the work is prose.
+
+- **The superseded branch had nothing left to take.** Its one content commit (`3609729`, Content Flags tab names and a step-one pass the page shows) reached main separately as `ad9256c`, and `5bb1128` has since rewritten `0003`'s ask and criterion #3 again.
+- **One contradiction those later edits left, fixed (#7).** `0003`'s `## Links` line for `0002` still said criterion #3 "is expected to fail as written". Since 2026-09-30 criterion #3 says what `AdminController::reviewFlag` does and can pass. The line now says #3 was rewritten that day to what the code does. Nothing else on `0003` changed; `## Comments` untouched.
+- **Re-read the other open cards against #1-#7.** `0001` `## Why` is past tense and its `0002` link matches `HANDOVER.md` §"Not settled"; `0004` names its four-reason reason; `0006` has `## Links`. No `needs:` or `Blocked by` on any card, so #4 is vacuous.
+- **Count (#6):** `board:convention --path` refuses a path under the worktrees folder, so I ran it on a temp copy of `docs/board`: `timeline 0 5 0007` before, `timeline 0 6 0008` after (the sixth is new card `0007`, and it passes).
+- **Out of scope, card `0007`:** `HANDOVER.md` links `docs/board/human-review/` for `0001`, which moved to `todo/` on 2026-09-29.
+
+Suite: `.\vendor\bin\phpunit.bat` 37 tests, 92 assertions, green (`pest.bat` does not exist here). Pint not run: no PHP changed, and the old drift is card `0006`. Markdown only, so no browser check applies.
