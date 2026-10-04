@@ -47,7 +47,8 @@ account has been created since.
 - `0001` - the browser-side check that sits in front of this server scan. It changes what reaches
   the scan, so a change there changes what this verification is measuring.
 - `0002` - rewrote the handover's moderation section, and recorded there that quarantine does not
-  touch the image. That is why criterion #3 below is expected to fail as written.
+  touch the image. That is why criterion #3 below was rewritten on 2026-09-30 to what the code
+  does.
 
 ## Not this card
 The client-side pre-scan, which is card `0001`, linked above. This is about what the server already
