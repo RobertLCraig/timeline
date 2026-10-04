@@ -114,3 +114,5 @@ VERDICT: sound
 
 - **#1 was named by the acceptance lens and is not a ticked criterion here**, so nothing was changed: `pint --test` still exits 1 and flags GroupMember.php, config/cors.php and three 2026_02_25 migrations (line_ending, class_definition, braces_position) that the reformat commit never touched.
 
+
+**2026-10-05** The reviewer's acceptance lens returned this card defect: I ran the check myself. It fails. The reviewer's scope lens returned this card sound: I could not break this card. The reviewer's breakage lens returned this card sound: I tried to find something that this change breaks. I found nothing. The loop moved it from todo/ to human-review/ because it has bounced 1 time between todo and ai-review, all 2 criteria ticked. THE BUILDER COULD NOT ACT ON THAT FINDING. A reviewer reopens every criterion it reports unmet, and the reviews that sent this card back named no criterion they disproved, so it came back with 2 of 2 criteria still ticked, every session found nothing open to do, and the loop promoted it again on the boxes. Add or reopen the criterion the finding breaks and move it back to todo/, or say here why the finding is wrong.
