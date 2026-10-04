@@ -346,3 +346,58 @@ Not covered by a test: the one line in `EventForm.jsx` that passes `api.get('/up
 Criteria 1, 3 and 4 were met by earlier runs. Their tests still pass here, so they stay listed.
 
 Suite: `.\vendor\bin\phpunit.bat` 37 tests, 92 assertions, green (`pest.bat` does not exist in this project). `npm run test:js` 8 tests, green. `pint --test --dirty` had no PHP to check; no PHP changed. `npm run build` rebuilt `public/build/`.
+
+### 2026-10-04 review (v20261004171829-3d9b)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 30s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+I checked all four criteria against the code. I could not break any of them.
+
+**#1 It blocks a photo that scores over 0.7.** `blockedClass()` in `resources/js/lib/nsfwScan.js` finds a `Porn`, `Hentai` or `Sexy` score over `NSFW_THRESHOLD`, which is set to 0.7. `handleImageChange()` in `resources/js/pages/EventForm.jsx` then shows an error that names the class. It returns before it calls `setImageFile`. `handleSubmit()` uploads only when `imageFile` is set, so no request goes out.
+
+**#2 A clean photo uploads, and the server still scans it.** Last time, this criterion failed because a stalled settings request locked the form. That is now fixed. `checksEnabledFrom()` in `nsfwScan.js` puts a 5-second limit on `/upload/settings` (`SETTINGS_TIMEOUT_MS`). If the request is slow or fails, the browser scan counts as off. The test `checksEnabledFrom(new Promise(() => {}), 50)` proves this. On the server, `UploadController::store()` still calls the Sightengine scan.
+
+**#3 If the model will not load, the upload still works.** `scanImageFile()` loads the model first, then decodes the image. It gives up after 15 seconds. It catches every error and returns null, and null allows the upload.
+
+**#4 The admin switch turns the browser scan off.** When `enabled` is false, `scanImageFile()` returns before it calls `load()`, so the model is never fetched. `EventForm` gets `enabled` from `/upload/settings`.
+
+One gap remains, and it does not fail any criterion. A model load that hangs stays saved in `loadModel()`. After that, every photo the user picks waits the full 15 seconds, then uploads. Card 0007 already tracks this.
+
+VERDICT: sound
+
+**scope: sound**
+
+**Scope review for card 0001. I found nothing that goes past the card's limits.**
+
+**The server change stays inside the fence.** `UploadController::settings()` only reads `nsfw_checks_enabled` and sends it back. It does not change `store()`, `scanEnabled()`, `nudity_threshold` or the review queue. Criterion #4 needs it, because the browser has no other way to know the switch value.
+
+**The Plan still holds.** `NSFW_THRESHOLD` is still a fixed value in `resources/js/lib/nsfwScan.js`. The client does not fetch the threshold.
+
+**The last fix stays small.** Commit `b557ee7` adds `checksEnabledFrom()` in `nsfwScan.js`. It gives up after 5 s and treats the switch as off, so the server scan decides. `EventForm.jsx::handleImageChange` now waits on that. This change is limited to criterion #2.
+
+**Some open work went to a new card, not into this one.** The old breakage finding said a stalled model load stays cached by `loadModel()`. It is now card `0008`. That card is not half done here. It is new work with its own card.
+
+**Most of the diff is not this card.** The `HANDOVER.md` and `docs/board/README.md` changes come from card `0002` and the board. One small note: Task 1 still names the wrong package. That is only wording.
+
+No criterion is disproved.
+
+VERDICT: sound
+
+**breakage: sound**
+
+**Breakage review of card 0001: no criterion fails, so the verdict is sound.**
+
+**The settings stall is fixed.** In `EventForm.jsx`, the mount effect now gets the admin switch through `checksEnabledFrom()` in `resources/js/lib/nsfwScan.js`. That function stops waiting after 5 s (`SETTINGS_TIMEOUT_MS`) and treats the switch as off. If the request fails, the switch is also off. After that, `handleImageChange` continues. `scanning` goes back to false, and the file input and Submit work again. Criterion #2 now holds.
+
+**The model stall is still cached.** In `loadModel()`, `modelPromise` is cleared only when the load fails with an error. A load that hangs never does that. So after one timeout, each new photo pick waits the full 15 s again. The form still unlocks after that wait, and the upload is allowed. So criterion #3 still holds, but it is slow. Card `0008` now tracks this, so it is not a hidden break.
+
+**One comment is now partly false.** The comment in `loadModel()` says "A failed load must not be cached". A load that hangs is not covered by that. Card `0008` already covers this case.
+
+**Nothing else is broken.** `EventForm.jsx` is the only caller of `scanImageFile()` and `checksEnabledFrom()`. `UploadController::store()` did not change.
+
+VERDICT: sound
+
