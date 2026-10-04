@@ -19,6 +19,9 @@ const BLOCKED_CLASSES = ['Porn', 'Hentai', 'Sexy'];
 // scan decide, rather than keep the form locked on a stalled fetch.
 const MODEL_LOAD_TIMEOUT_MS = 15000;
 
+// A small JSON read. Past this the switch reads as off.
+const SETTINGS_TIMEOUT_MS = 5000;
+
 /**
  * The name of the first blocked class scoring above the threshold, or null to
  * allow. Pure, so it can be checked without a browser or a model.
@@ -61,9 +64,20 @@ function decode(file) {
 function withTimeout(promise, ms) {
     let timer;
     const timeout = new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`model did not load within ${ms} ms`)), ms);
+        timer = setTimeout(() => reject(new Error(`no answer within ${ms} ms`)), ms);
     });
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * The admin `nsfw_checks_enabled` switch from a `/upload/settings` request.
+ * EventForm awaits this with the form locked, so a request that fails or
+ * stalls past the timeout reads as off and the server scan decides.
+ */
+export function checksEnabledFrom(request, timeoutMs = SETTINGS_TIMEOUT_MS) {
+    return withTimeout(request, timeoutMs)
+        .then(d => d.nsfw_checks_enabled === true)
+        .catch(() => false);
 }
 
 /**

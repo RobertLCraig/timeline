@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
-import { scanImageFile } from '../lib/nsfwScan';
+import { scanImageFile, checksEnabledFrom } from '../lib/nsfwScan';
 
 const TIER_LABELS = {
     family:        { emoji: '👨‍👩‍👧‍👦', label: 'Family',        desc: 'Only family members' },
@@ -42,9 +42,7 @@ export default function EventForm() {
     const checksEnabled = useRef(Promise.resolve(false));
 
     useEffect(() => {
-        checksEnabled.current = api.get('/upload/settings')
-            .then(d => d.nsfw_checks_enabled === true)
-            .catch(() => false);
+        checksEnabled.current = checksEnabledFrom(api.get('/upload/settings'));
     }, []);
 
     useEffect(() => {
