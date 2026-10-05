@@ -630,3 +630,46 @@
     padding-top: var(--space-md);
     border-top: 1px solid var(--border-color);
 }
+
+/* Comments (card 0011) */
+.ev-comments {
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--border-color);
+}
+.ev-comments-title {
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--space-sm);
+}
+.ev-comments-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--space-sm);
+}
+.ev-comment {
+    padding: var(--space-xs) 0;
+}
+.ev-comment-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+.ev-comment-body {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    white-space: pre-line;
+    margin: 0;
+}
+.ev-comment-form {
+    display: flex;
+    gap: var(--space-xs);
+    align-items: flex-end;
+}
+.ev-comment-form textarea {
+    flex: 1;
+    resize: vertical;
+}
+.ev-comment-error {
+    color: #ef4444;
+    margin-top: var(--space-xs);
+}

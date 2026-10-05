@@ -61,6 +61,12 @@ return Application::configure(basePath: dirname(__DIR__))
             return Limit::perMinute(60)->by($key);
         });
 
+        // Comment throttle: 10 posts/min per user, so one person cannot flood
+        // an event's thread. Reading (polling) is not counted.
+        RateLimiter::for('comments-write', function (Request $request) {
+            return Limit::perMinute(10)->by('usr:'.($request->user()?->id ?? $request->ip()));
+        });
+
         // Invite-email throttle: 10 sent per user per hour, to protect the
         // sending reputation. Invites without an email are not counted.
         RateLimiter::for('invite-email', function (Request $request) {

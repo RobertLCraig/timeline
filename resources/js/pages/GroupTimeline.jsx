@@ -744,6 +744,7 @@ export default function GroupTimeline() {
                     slug={slug}
                     canManage={canManage}
                     currentUserId={user?.id}
+                    canComment={isMember}
                     onClose={() => setSelectedEvent(null)}
                     onDelete={async (id) => { await handleDelete(id); setSelectedEvent(null); }}
                 />

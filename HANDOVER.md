@@ -94,6 +94,7 @@ c:\Dev\timeline\
 | `GroupMember` | `group_members` | `user_id`, `group_id`, `role` (owner/admin/member) |
 | `Event` | `events` | `group_id`, `category_id`, `event_date`, `visibility`, `social_visibility`, `image_url`, `image_urls`, `album_url` |
 | `EventCategory` | `event_categories` | `name`, `icon`, `color` |
+| `EventComment` | `event_comments` | `event_id`, `user_id`, `body` (plain text), `created_at` |
 | `ReferralCode` | `referral_codes` | `code`, `max_uses`, `current_uses`, `expires_at` |
 | — | `category_visibility_defaults` | `user_id`, `category_id`, `visibility_tier` |
 | — | `user_group_visibility` | `user_id`, `group_id`, `visibility_tier` |
@@ -121,7 +122,18 @@ Events carry **two independent visibility fields**:
 | `acquaintances` | 4 |
 | `public` | 5 |
 
-Both filters are applied when a group timeline is fetched. Per-user category defaults are stored in `category_visibility_defaults`; per-user group tier overrides in `user_group_visibility`.
+Both filters are applied when a group timeline is fetched. The rule lives in one place,
+`Event::visibleIn($group, $user)`; the timeline and event comments both use it.
+
+### Event comments (card 0011)
+
+`CommentController`, routes `GET|POST /api/groups/{slug}/events/{id}/comments` (`?since=` returns
+only newer ones) and `DELETE …/comments/{commentId}`. Only group members (or a super admin) who can
+see the event reach them; anything else answers `404 Event not found.`, the same as a missing event.
+Delete follows the event edit rule. Posting is throttled by `comments-write` (10/min per user).
+"Live" is short polling (12 s, only while the pop-up is open and the tab is visible) from
+`EventModal.jsx`, because Hostinger shared hosting cannot keep a socket open. The vertical timeline
+view does not use `EventModal`, so comments show only in the other views. Per-user category defaults are stored in `category_visibility_defaults`; per-user group tier overrides in `user_group_visibility`.
 
 ### Active Group
 

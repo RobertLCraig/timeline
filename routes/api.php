@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\TokenController;
@@ -103,6 +104,12 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/groups/{slug}/events/{id}', [EventController::class, 'destroy']);
         });
     });
+
+    // Comments on an event. Membership and visibility are checked in the
+    // controller so a hidden event answers 404, exactly like a missing one.
+    Route::get('/groups/{slug}/events/{id}/comments', [CommentController::class, 'index']);
+    Route::post('/groups/{slug}/events/{id}/comments', [CommentController::class, 'store'])->middleware('throttle:comments-write');
+    Route::delete('/groups/{slug}/events/{id}/comments/{commentId}', [CommentController::class, 'destroy']);
 
     // Group admin routes (requires admin or owner)
     Route::middleware('group.role:owner,admin')->group(function () {

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import api from '../../lib/api';
 import './views.css';
 
 const SOCIAL_TIER_ICON = {
@@ -13,7 +14,112 @@ const SOCIAL_TIER_ICON = {
 
 // Shared detail dialog used by the calendar / heatmap / mosaic views.
 // (The vertical timeline view renders full cards inline and doesn't use this.)
-export default function EventModal({ event, slug, canManage, currentUserId, onClose, onDelete }) {
+const POLL_MS = 12000;
+
+// Comments under an event. Polls while mounted (i.e. while the modal is open)
+// and the tab is visible, sending `since` so a quiet poll returns nothing.
+// Bodies render as React text, never as HTML.
+function Comments({ slug, eventId, canManage, currentUserId }) {
+    const url = `/groups/${slug}/events/${eventId}/comments`;
+    const [comments, setComments] = useState([]);
+    const [body, setBody] = useState('');
+    const [error, setError] = useState('');
+    const [sending, setSending] = useState(false);
+    const latest = useRef(null);
+
+    const merge = (incoming) => {
+        if (!incoming.length) return;
+        setComments(prev => {
+            const seen = new Set(prev.map(c => c.id));
+            return [...prev, ...incoming.filter(c => !seen.has(c.id))];
+        });
+        latest.current = incoming[incoming.length - 1].created_at;
+    };
+
+    useEffect(() => {
+        let stopped = false;
+        setComments([]);
+        latest.current = null;
+
+        const poll = async () => {
+            if (document.visibilityState !== 'visible') return;
+            try {
+                const q = latest.current ? `?since=${encodeURIComponent(latest.current)}` : '';
+                const data = await api.get(url + q);
+                if (!stopped) merge(data.comments);
+            } catch { /* next poll retries */ }
+        };
+
+        poll();
+        const timer = setInterval(poll, POLL_MS);
+        document.addEventListener('visibilitychange', poll);
+        return () => {
+            stopped = true;
+            clearInterval(timer);
+            document.removeEventListener('visibilitychange', poll);
+        };
+    }, [url]);
+
+    const send = async (e) => {
+        e.preventDefault();
+        if (!body.trim()) return;
+        setSending(true);
+        setError('');
+        try {
+            const data = await api.post(url, { body });
+            merge([data.comment]);
+            setBody('');
+        } catch (err) {
+            setError(err.status === 429 ? 'You are commenting too fast. Wait a minute.' : err.message);
+        } finally {
+            setSending(false);
+        }
+    };
+
+    const remove = async (id) => {
+        try {
+            await api.delete(`${url}/${id}`);
+            setComments(prev => prev.filter(c => c.id !== id));
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    return (
+        <div className="ev-comments">
+            <h3 className="ev-comments-title">Comments</h3>
+            {comments.length === 0 && <p className="text-muted text-sm">No comments yet.</p>}
+            <ul className="ev-comments-list">
+                {comments.map(c => (
+                    <li key={c.id} className="ev-comment">
+                        <div className="ev-comment-head">
+                            <strong>{c.user?.name || 'Unknown'}</strong>
+                            <span className="text-muted text-sm">{new Date(c.created_at).toLocaleString()}</span>
+                            {(canManage || c.user_id === currentUserId) && (
+                                <button onClick={() => remove(c.id)} className="btn btn-ghost btn-sm" aria-label="Delete comment">✕</button>
+                            )}
+                        </div>
+                        <p className="ev-comment-body">{c.body}</p>
+                    </li>
+                ))}
+            </ul>
+            <form onSubmit={send} className="ev-comment-form">
+                <textarea
+                    value={body}
+                    onChange={(e) => setBody(e.target.value)}
+                    maxLength={2000}
+                    rows={2}
+                    placeholder="Add a comment…"
+                    aria-label="Add a comment"
+                />
+                <button type="submit" className="btn btn-primary btn-sm" disabled={sending || !body.trim()}>Post</button>
+            </form>
+            {error && <p className="ev-comment-error text-sm" role="alert">{error}</p>}
+        </div>
+    );
+}
+
+export default function EventModal({ event, slug, canManage, currentUserId, canComment, onClose, onDelete }) {
     const photos = event?.image_urls?.length ? event.image_urls : (event?.image_url ? [event.image_url] : []);
     const [index, setIndex] = useState(0);
     const step = (d) => setIndex(i => (i + d + photos.length) % photos.length);
@@ -92,6 +198,10 @@ export default function EventModal({ event, slug, canManage, currentUserId, onCl
                             </div>
                         )}
                     </div>
+
+                    {canComment && (
+                        <Comments slug={slug} eventId={event.id} canManage={canManage} currentUserId={currentUserId} />
+                    )}
                 </div>
             </div>
         </div>

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Event;
 use App\Models\Group;
-use App\Models\UserGroupVisibility;
 use App\Support\EventCreator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,57 +27,9 @@ class EventController extends Controller
 
         // Resolve user via Sanctum guard (works on public routes too)
         $user = Auth::guard('sanctum')->user();
-        $isMember = false;
-        $isAdminOrOwner = false;
-        $memberRole = null;
 
-        if ($user) {
-            $memberRole = $group->getMemberRole($user->id);
-            $isMember = $memberRole !== null;
-            $isAdminOrOwner = in_array($memberRole, ['owner', 'admin']) || $user->isSuperAdmin();
-        }
-
-        $query = Event::where('group_id', $group->id)
+        $query = Event::visibleIn($group, $user)
             ->with(['category', 'creator:id,name,avatar_url']);
-
-        // ── Step 1: Old membership visibility filter ────────────────────────
-        if (! $user) {
-            $query->where('visibility', 'public');
-        } elseif ($isAdminOrOwner) {
-            // Admin/owner sees everything (no old-visibility filter)
-        } elseif ($isMember) {
-            $query->where(function ($q) use ($user) {
-                $q->whereIn('visibility', ['public', 'members'])
-                    ->orWhere(function ($q2) use ($user) {
-                        $q2->where('visibility', 'private')
-                            ->where('created_by', $user->id);
-                    });
-            });
-        } else {
-            $query->where('visibility', 'public');
-        }
-
-        // ── Step 2: Social visibility tier filter (members only) ────────────
-        if ($isMember && ! $isAdminOrOwner) {
-            // Get the user's social tier for this group (default: 'friends')
-            $groupTierRecord = UserGroupVisibility::where('user_id', $user->id)
-                ->where('group_id', $group->id)
-                ->first();
-            $groupTier = $groupTierRecord?->visibility_tier ?? 'friends';
-
-            $visibleTiers = Event::visibleTiersForGroupTier($groupTier);
-
-            // Events visible if:
-            // - social_visibility is in the visible tiers, OR
-            // - it's 'private' and the user is the creator (always sees own private)
-            $query->where(function ($q) use ($visibleTiers, $user) {
-                $q->whereIn('social_visibility', $visibleTiers)
-                    ->orWhere(function ($q2) use ($user) {
-                        $q2->where('social_visibility', 'private')
-                            ->where('created_by', $user->id);
-                    });
-            });
-        }
 
         // ── Optional filters ────────────────────────────────────────────────
         if ($request->has('category_id') && $request->category_id !== '') {

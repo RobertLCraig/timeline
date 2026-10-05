@@ -35,7 +35,7 @@
     ]
   },
   "node_modules/nsfwjs/dist/esm/models/mobilenet_v2.js": {
-    "file": "assets/mobilenet_v2-C3-5p8om.js",
+    "file": "assets/mobilenet_v2-YqZwyGqo.js",
     "name": "mobilenet_v2",
     "src": "node_modules/nsfwjs/dist/esm/models/mobilenet_v2.js",
     "isDynamicEntry": true,
@@ -53,7 +53,7 @@
     "isEntry": true
   },
   "resources/js/main.jsx": {
-    "file": "assets/main-Ct-aQkQL.js",
+    "file": "assets/main-BlOPLHTx.js",
     "name": "main",
     "src": "resources/js/main.jsx",
     "isEntry": true,
@@ -62,7 +62,7 @@
       "node_modules/nsfwjs/dist/esm/models/mobilenet_v2.js"
     ],
     "css": [
-      "assets/main-US7at9hN.css"
+      "assets/main-Dz8Fvbps.css"
     ]
   }
 }
