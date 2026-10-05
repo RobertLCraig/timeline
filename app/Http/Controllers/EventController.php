@@ -150,6 +150,8 @@ class EventController extends Controller
             'social_visibility' => 'sometimes|nullable|in:family,close_friends,friends,acquaintances,public,private',
             'visibility_is_override' => 'sometimes|boolean',
             'image_url' => 'nullable|string|max:500',
+            'image_urls' => 'sometimes|nullable|array|max:'.Event::MAX_PHOTOS,
+            'image_urls.*' => 'string|max:500',
             'album_url' => 'nullable|url|max:1000',
             'import_hash' => 'sometimes|nullable|string|max:64',
         ]);
@@ -214,6 +216,8 @@ class EventController extends Controller
             'social_visibility' => 'sometimes|nullable|in:family,close_friends,friends,acquaintances,public,private',
             'visibility_is_override' => 'sometimes|boolean',
             'image_url' => 'sometimes|nullable|string|max:500',
+            'image_urls' => 'sometimes|nullable|array|max:'.Event::MAX_PHOTOS,
+            'image_urls.*' => 'string|max:500',
             'album_url' => 'sometimes|nullable|url|max:1000',
         ]);
 

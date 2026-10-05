@@ -92,7 +92,7 @@ c:\Dev\timeline\
 | `User` | `users` | `platform_role` (user/super_admin), `active_group_id` |
 | `Group` | `groups` | `slug`, `visibility`, `invite_code` |
 | `GroupMember` | `group_members` | `user_id`, `group_id`, `role` (owner/admin/member) |
-| `Event` | `events` | `group_id`, `category_id`, `event_date`, `visibility`, `social_visibility`, `image_url`, `album_url` |
+| `Event` | `events` | `group_id`, `category_id`, `event_date`, `visibility`, `social_visibility`, `image_url`, `image_urls`, `album_url` |
 | `EventCategory` | `event_categories` | `name`, `icon`, `color` |
 | `ReferralCode` | `referral_codes` | `code`, `max_uses`, `current_uses`, `expires_at` |
 | — | `category_visibility_defaults` | `user_id`, `category_id`, `visibility_tier` |

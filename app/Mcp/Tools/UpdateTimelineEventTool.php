@@ -32,6 +32,8 @@ class UpdateTimelineEventTool extends Tool
             'visibility' => 'sometimes|in:public,members,private',
             'social_visibility' => 'sometimes|in:family,close_friends,friends,acquaintances,public,private',
             'image_url' => 'sometimes|nullable|string|max:500',
+            'image_urls' => 'sometimes|nullable|array|max:'.Event::MAX_PHOTOS,
+            'image_urls.*' => 'string|max:500',
             'album_url' => 'sometimes|nullable|string|max:1000',
         ]);
 
@@ -112,6 +114,8 @@ class UpdateTimelineEventTool extends Tool
                 ->description('Social tier: family, close_friends, friends, acquaintances, public, or private.'),
             'image_url' => $schema->string()
                 ->description('New image URL or upload path.'),
+            'image_urls' => $schema->array()->items($schema->string())
+                ->description('Optional ordered list of photo URLs or upload paths (max '.Event::MAX_PHOTOS.'). The first is the cover; it replaces image_url when both are given.'),
             'album_url' => $schema->string()
                 ->description('New URL to a full photo album.'),
         ];

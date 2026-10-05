@@ -222,7 +222,7 @@ category filter (left sidebar) carries across every view.
 | `zoom` | Zoomable horizontal axis | `ZoomableTimelineView.jsx` | `+`/`−` zoom (8–800 px/yr), nice-stepped year ticks, greedy lane-stacking to avoid label overlap |
 | `heatmap` | Year × month density grid | `CalendarHeatmapView.jsx` | Cell shade scales with event count; click a cell → that month's events listed below |
 | `calendar` | Month grid | `MonthCalendarView.jsx` | Prev/next nav + "Latest" jump; defaults to the most recent month with events |
-| `photos` | Image masonry by year | `PhotoMosaicView.jsx` | Only events with `image_url`; click a tile → modal |
+| `photos` | Image masonry by year | `PhotoMosaicView.jsx` | One tile per photo in `image_urls`; click a tile → modal (steps through the event's photos) |
 
 - **Persistence**: the chosen view is saved per group in `localStorage` under `tl-view:<slug>`
   and restored on navigation (see the `slug` effect in `GroupTimeline.jsx`).
@@ -249,7 +249,7 @@ category filter (left sidebar) carries across every view.
 | `groups` | `slug`, `visibility`, `invite_code` |
 | `group_members` | `user_id`, `group_id`, `role` (owner/admin/member) |
 | `group_invites` | `code`, `group_id`, `created_by`, `max_uses`, `current_uses`, `expires_at` |
-| `events` | `group_id`, `category_id`, `event_date`, `visibility`, `social_visibility`, `image_url`, `album_url`, `source` (web/api/mcp) |
+| `events` | `group_id`, `category_id`, `event_date`, `visibility`, `social_visibility`, `image_url` (cover = first photo), `image_urls` (JSON list, NULL on legacy rows = `[image_url]`), `album_url`, `source` (web/api/mcp) |
 | `event_categories` | `name`, `icon`, `color`, **`group_id`** (NULL = global/shared; set = that group only) |
 | `category_visibility_defaults` | `user_id`, `category_id`, `visibility_tier` |
 | `user_group_visibility` | `user_id`, `group_id`, `visibility_tier` |

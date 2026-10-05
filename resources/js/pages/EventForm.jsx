@@ -31,8 +31,9 @@ export default function EventForm() {
         visibility_is_override: false,
         album_url: '',
     });
-    const [imageFile, setImageFile] = useState(null);
-    const [imagePreview, setImagePreview] = useState('');
+    // The event's photos in order; the first is the cover. Saved ones carry
+    // a url, newly picked ones a file that is uploaded on submit.
+    const [photos, setPhotos] = useState([]);
     const [error, setError] = useState('');
     const [scanning, setScanning] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -74,9 +75,7 @@ export default function EventForm() {
                         visibility_is_override: ev.visibility_is_override || false,
                         album_url: ev.album_url || '',
                     });
-                    if (ev.image_url) {
-                        setImagePreview(ev.image_url);
-                    }
+                    setPhotos((ev.image_urls || []).map(url => ({ url, preview: url })));
                 })
                 .catch(() => navigate(`/g/${slug}`))
                 .finally(() => setPageLoading(false));
@@ -108,45 +107,54 @@ export default function EventForm() {
 
     const handleImageChange = async (e) => {
         const input = e.target;
-        const file = input.files[0];
-        if (!file) return;
+        const files = [...input.files];
+        input.value = ''; // so picking the same files again still fires change
+        if (!files.length) return;
 
-        // Pre-scan in the browser before anything is sent. A blocked picture is
-        // never uploaded; a scan that cannot run allows it and the server-side
-        // scan still has the last word.
+        // Pre-scan each file in the browser before anything is sent. A blocked
+        // picture is never uploaded; a scan that cannot run allows it and the
+        // server-side scan still has the last word.
         setError('');
         setScanning(true);
-        const blocked = await scanImageFile(file, { enabled: await checksEnabled.current });
+        const enabled = await checksEnabled.current;
+        const added = [];
+        const refused = [];
+        for (const file of files) {
+            const blocked = await scanImageFile(file, { enabled });
+            if (blocked) refused.push(`"${file.name}" (${blocked})`);
+            else added.push({ file, preview: URL.createObjectURL(file) });
+        }
         setScanning(false);
 
-        if (blocked) {
-            input.value = ''; // so picking the same file again still fires change
-            setError(`That photo looks like adult content (${blocked}) and was not uploaded. Please choose another.`);
-            return;
+        if (refused.length) {
+            setError(`These photos look like adult content and were not added: ${refused.join(', ')}.`);
         }
-
-        setImageFile(file);
-        setImagePreview(URL.createObjectURL(file));
+        setPhotos(p => [...p, ...added]);
     };
+
+    const removePhoto = (index) => setPhotos(p => p.filter((_, i) => i !== index));
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
         try {
-            let image_url = form.image_url;
-
-            if (imageFile) {
-                const formData = new FormData();
-                formData.append('image', imageFile);
-                const uploadResult = await api.post('/upload', formData);
-                image_url = uploadResult.url;
+            // One upload call per new photo, in order, so each is scanned.
+            const image_urls = [];
+            for (const photo of photos) {
+                if (photo.file) {
+                    const formData = new FormData();
+                    formData.append('image', photo.file);
+                    image_urls.push((await api.post('/upload', formData)).url);
+                } else {
+                    image_urls.push(photo.url);
+                }
             }
 
             const body = {
                 ...form,
                 category_id: form.category_id || null,
-                image_url,
+                image_urls,
             };
 
             if (isEdit) {
@@ -318,13 +326,20 @@ export default function EventForm() {
                         </div>
 
                         <div className="form-group">
-                            <label className="form-label">Photo</label>
-                            <input type="file" accept="image/*" onChange={handleImageChange}
+                            <label className="form-label">Photos</label>
+                            <input type="file" accept="image/*" multiple onChange={handleImageChange}
                                 className="form-input" style={{ padding: '8px' }} disabled={scanning} />
-                            {scanning && <span className="form-hint">Checking this photo…</span>}
-                            {imagePreview && (
-                                <div style={{ marginTop: 'var(--space-sm)', borderRadius: 'var(--border-radius-sm)', overflow: 'hidden', maxHeight: '200px' }}>
-                                    <img src={imagePreview} alt="Preview" style={{ width: '100%', objectFit: 'cover' }} />
+                            {scanning && <span className="form-hint">Checking these photos…</span>}
+                            {photos.length > 0 && (
+                                <div className="photo-thumbs">
+                                    {photos.map((photo, i) => (
+                                        <div key={photo.preview} className="photo-thumb">
+                                            <img src={photo.preview} alt={`Photo ${i + 1}`} />
+                                            {i === 0 && <span className="photo-thumb-cover">Cover</span>}
+                                            <button type="button" className="photo-thumb-remove"
+                                                onClick={() => removePhoto(i)} aria-label={`Remove photo ${i + 1}`}>✕</button>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>
@@ -377,6 +392,34 @@ export default function EventForm() {
         }
         .visibility-label { font-weight: 600; font-size: var(--font-size-sm); }
         .visibility-desc { font-size: var(--font-size-xs); color: var(--text-muted); }
+        .photo-thumbs {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+          gap: var(--space-sm);
+          margin-top: var(--space-sm);
+        }
+        .photo-thumb {
+          position: relative;
+          aspect-ratio: 1;
+          border-radius: var(--border-radius-sm);
+          overflow: hidden;
+          border: 1px solid var(--border-color);
+        }
+        .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .photo-thumb-cover {
+          position: absolute; left: 4px; bottom: 4px;
+          padding: 0 6px;
+          font-size: var(--font-size-xs);
+          background: var(--color-primary); color: #fff;
+          border-radius: var(--border-radius-sm);
+        }
+        .photo-thumb-remove {
+          position: absolute; top: 4px; right: 4px;
+          width: 24px; height: 24px;
+          border: none; border-radius: 50%;
+          background: rgba(0, 0, 0, 0.6); color: #fff;
+          cursor: pointer;
+        }
         @media (max-width: 600px) {
           .visibility-options, .social-tier-options { grid-template-columns: 1fr; }
         }

@@ -111,6 +111,27 @@ class McpAuthorizationTest extends TestCase
         $this->assertDatabaseHas('events', ['id' => $event->id, 'title' => 'An event']);
     }
 
+    public function test_a_non_owner_cannot_change_event_photos(): void
+    {
+        $owner = User::factory()->create();
+        $group = $this->group($owner);
+        $creator = $this->member($group);
+        $other = $this->member($group);
+        $event = $this->event($group, $creator, ['image_url' => '/uploads/mine.jpg']);
+        $swap = ['/uploads/theirs.jpg', '/uploads/also-theirs.jpg'];
+
+        $this->act($other, UpdateTimelineEventTool::class, ['event_id' => $event->id, 'image_urls' => $swap])
+            ->assertHasErrors();
+
+        $this->withToken($other->createToken('t', ['events:write'])->plainTextToken)
+            ->putJson("/api/groups/{$group->slug}/events/{$event->id}", ['image_urls' => $swap])
+            ->assertForbidden();
+
+        $fresh = $event->fresh();
+        $this->assertSame('/uploads/mine.jpg', $fresh->image_url);
+        $this->assertSame(['/uploads/mine.jpg'], $fresh->image_urls);
+    }
+
     public function test_non_member_cannot_delete_event(): void
     {
         $owner = User::factory()->create();

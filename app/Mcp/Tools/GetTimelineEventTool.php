@@ -46,6 +46,7 @@ class GetTimelineEventTool extends Tool
             'visibility' => $event->visibility,
             'social_visibility' => $event->social_visibility,
             'image_url' => $event->image_url,
+            'image_urls' => $event->image_urls,
             'album_url' => $event->album_url,
             'created_by' => $event->creator?->name,
             'source' => $event->source,

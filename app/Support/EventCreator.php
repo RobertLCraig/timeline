@@ -86,11 +86,35 @@ class EventCreator
     }
 
     /**
+     * Resolve the photo columns from validated data so image_url is always the
+     * first entry of image_urls. A list (image_urls) wins; a lone image_url
+     * from an older client replaces the cover only, or removes it when null.
+     * Returns [] when neither key was given.
+     */
+    private static function photoFields(array $data, ?Event $event = null): array
+    {
+        if (array_key_exists('image_urls', $data)) {
+            $urls = array_values($data['image_urls'] ?? []);
+        } elseif (array_key_exists('image_url', $data)) {
+            $urls = $event?->image_urls ?? [];
+            if ($data['image_url'] === null) {
+                array_shift($urls);
+            } else {
+                $urls[0] = $data['image_url'];
+            }
+        } else {
+            return [];
+        }
+
+        return ['image_urls' => $urls, 'image_url' => $urls[0] ?? null];
+    }
+
+    /**
      * Create an event from already-validated data.
      *
      * @param  array  $data  keys: title, description, event_date, category_id,
      *                       visibility, social_visibility, visibility_is_override,
-     *                       image_url, album_url
+     *                       image_url, image_urls, album_url
      * @param  string  $source  'web' | 'api' | 'mcp'
      */
     public static function create(User $user, Group $group, array $data, string $source): Event
@@ -105,7 +129,7 @@ class EventCreator
             (bool) ($data['visibility_is_override'] ?? false)
         );
 
-        $event = Event::create([
+        $event = Event::create(self::photoFields($data) + [
             'group_id' => $group->id,
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
@@ -115,7 +139,8 @@ class EventCreator
             'visibility' => $data['visibility'] ?? 'members',
             'social_visibility' => $socialVisibility,
             'visibility_is_override' => $data['visibility_is_override'] ?? false,
-            'image_url' => $data['image_url'] ?? null,
+            'image_url' => null,
+            'image_urls' => [],
             'album_url' => $data['album_url'] ?? null,
             'source' => $source,
             'import_hash' => $data['import_hash'] ?? null,
@@ -170,7 +195,7 @@ class EventCreator
      *
      * @param  array  $data  any subset of: title, description, event_date,
      *                       category_id, visibility, social_visibility,
-     *                       visibility_is_override, image_url, album_url
+     *                       visibility_is_override, image_url, image_urls, album_url
      */
     public static function applyUpdate(Event $event, User $user, array $data): Event
     {
@@ -192,10 +217,10 @@ class EventCreator
         ) ?? $event->social_visibility;
 
         $updatable = array_intersect_key($data, array_flip([
-            'title', 'description', 'event_date', 'category_id', 'visibility', 'image_url', 'album_url',
+            'title', 'description', 'event_date', 'category_id', 'visibility', 'album_url',
         ]));
 
-        $event->update(array_merge($updatable, [
+        $event->update(array_merge($updatable, self::photoFields($data, $event), [
             'social_visibility' => $socialVisibility,
             'visibility_is_override' => $isOverride,
         ]));

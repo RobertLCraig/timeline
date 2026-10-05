@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
 class Event extends Model
@@ -33,6 +34,9 @@ class Event extends Model
         'public' => 5,
     ];
 
+    /** Most photos one event may hold. A soft product limit, not a security control. */
+    public const MAX_PHOTOS = 20;
+
     protected $fillable = [
         'group_id',
         'title',
@@ -44,6 +48,7 @@ class Event extends Model
         'social_visibility',
         'visibility_is_override',
         'image_url',
+        'image_urls',
         'album_url',
         'source',
         'import_hash',
@@ -55,6 +60,20 @@ class Event extends Model
             'event_date' => 'date',
             'visibility_is_override' => 'boolean',
         ];
+    }
+
+    /**
+     * The ordered photo list. A row written before galleries existed has
+     * image_urls NULL and reads as a one-photo gallery from image_url.
+     */
+    protected function imageUrls(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value, $attributes) => $value !== null
+                ? json_decode($value, true)
+                : array_values(array_filter([$attributes['image_url'] ?? null])),
+            set: fn ($value) => $value === null ? null : json_encode(array_values($value)),
+        );
     }
 
     public function group()

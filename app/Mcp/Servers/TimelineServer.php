@@ -40,7 +40,8 @@ Recommended flow:
    text/date/category) to find its event_id, then call `update_timeline_event`
    or `delete_timeline_event` with that id. Never guess an event_id.
 
-Photos: set `image_url` (a single photo) and/or `album_url` (a link to a full
+Photos: set `image_urls` (an ordered list of up to 20 photos, the first is the
+cover) or `image_url` (the cover alone), and/or `album_url` (a link to a full
 album) when posting or updating an event. On update, pass an empty string to
 remove one. You can also `create_category`, `list_group_members`, and
 `create_group_invite` (owners/admins only).

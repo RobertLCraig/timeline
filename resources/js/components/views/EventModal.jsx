@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import './views.css';
 
@@ -14,11 +14,21 @@ const SOCIAL_TIER_ICON = {
 // Shared detail dialog used by the calendar / heatmap / mosaic views.
 // (The vertical timeline view renders full cards inline and doesn't use this.)
 export default function EventModal({ event, slug, canManage, currentUserId, onClose, onDelete }) {
+    const photos = event?.image_urls?.length ? event.image_urls : (event?.image_url ? [event.image_url] : []);
+    const [index, setIndex] = useState(0);
+    const step = (d) => setIndex(i => (i + d + photos.length) % photos.length);
+
+    useEffect(() => setIndex(0), [event?.id]);
+
     useEffect(() => {
-        const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+        const onKey = (e) => {
+            if (e.key === 'Escape') onClose();
+            else if (photos.length > 1 && e.key === 'ArrowLeft') step(-1);
+            else if (photos.length > 1 && e.key === 'ArrowRight') step(1);
+        };
         document.addEventListener('keydown', onKey);
         return () => document.removeEventListener('keydown', onKey);
-    }, [onClose]);
+    }, [onClose, photos.length]);
 
     if (!event) return null;
 
@@ -32,9 +42,16 @@ export default function EventModal({ event, slug, canManage, currentUserId, onCl
             <div className="ev-modal" onClick={(e) => e.stopPropagation()}>
                 <button className="ev-modal-close" onClick={onClose} aria-label="Close">✕</button>
 
-                {event.image_url && (
+                {photos.length > 0 && (
                     <div className="ev-modal-image">
-                        <img src={event.image_url} alt={event.title} />
+                        <img src={photos[index]} alt={` - photo  of `} />
+                        {photos.length > 1 && (
+                            <>
+                                <button className="ev-modal-step ev-modal-prev" onClick={() => step(-1)} aria-label="Previous photo">‹</button>
+                                <button className="ev-modal-step ev-modal-next" onClick={() => step(1)} aria-label="Next photo">›</button>
+                                <span className="ev-modal-counter">{index + 1} / {photos.length}</span>
+                            </>
+                        )}
                     </div>
                 )}
 

@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Tools;
 
+use App\Models\Event;
 use App\Models\Group;
 use App\Support\EventCreator;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -32,6 +33,8 @@ class PostTimelineEventTool extends Tool
             'visibility' => 'nullable|in:public,members,private',
             'social_visibility' => 'nullable|in:family,close_friends,friends,acquaintances,public,private',
             'image_url' => 'nullable|string|max:500',
+            'image_urls' => 'sometimes|nullable|array|max:'.Event::MAX_PHOTOS,
+            'image_urls.*' => 'string|max:500',
             'album_url' => 'nullable|url|max:1000',
             'import_hash' => 'nullable|string|max:64',
         ]);
@@ -50,7 +53,7 @@ class PostTimelineEventTool extends Tool
 
         // Idempotent import: a repeated import_hash updates the existing event
         // (same ownership rule as an edit) instead of creating a duplicate.
-        [$event, $created] = EventCreator::importUpsert($user, $group, [
+        [$event, $created] = EventCreator::importUpsert($user, $group, array_intersect_key($validated, ['image_urls' => 1]) + [
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'event_date' => $validated['event_date'],
@@ -104,6 +107,8 @@ class PostTimelineEventTool extends Tool
                 ->description('Social tier: family, close_friends, friends, acquaintances, public, or private. Defaults from the category if omitted.'),
             'image_url' => $schema->string()
                 ->description('Optional image URL or upload path.'),
+            'image_urls' => $schema->array()->items($schema->string())
+                ->description('Optional ordered list of photo URLs or upload paths (max '.Event::MAX_PHOTOS.'). The first is the cover; it replaces image_url when both are given.'),
             'album_url' => $schema->string()
                 ->description('Optional URL to a full photo album.'),
             'import_hash' => $schema->string()

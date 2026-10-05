@@ -100,7 +100,8 @@ curl -X POST https://timeline.test/api/groups/<group-slug>/events \
 | `category_id`       | no       | Numeric id alternative to `category`.                                |
 | `visibility`        | no       | `public` \| `members` (default) \| `private`.                         |
 | `social_visibility` | no       | `family` \| `close_friends` \| `friends` \| `acquaintances` \| `public` \| `private`. Defaults from the category if omitted. |
-| `image_url`         | no       | Image URL or upload path (max 500).                                  |
+| `image_url`         | no       | Image URL or upload path (max 500). The cover photo.                 |
+| `image_urls`        | no       | Ordered list of image URLs or upload paths (max 20). The first becomes `image_url`; wins over `image_url` when both are sent. |
 | `album_url`         | no       | URL to a full album (max 1000).                                      |
 
 **Success:** `201 Created` with `{ "event": { ... } }`.
@@ -150,8 +151,10 @@ All event edits/deletes require you to be the event's creator or a group
 admin/owner; group-admin actions require owner/admin.
 
 Photos & albums: `post_timeline_event` / `update_timeline_event` accept
-`image_url` (one photo) and `album_url` (a link to a full album). On update,
-pass an empty string for either to remove it.
+`image_urls` (an ordered list of up to 20 photos; the first is the cover),
+`image_url` (the cover alone) and `album_url` (a link to a full album). On update,
+pass an empty string for `image_url` or `album_url` to remove it, or `[]` for
+`image_urls` to remove every photo.
 
 > **Tip:** sign in to the Family Timeline in your default browser *first*. Then
 > the "Connect" step jumps straight to the consent screen instead of asking you
