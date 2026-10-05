@@ -116,3 +116,32 @@ VERDICT: sound
 
 
 **2026-10-05** The reviewer's acceptance lens returned this card defect: I ran the check myself. It fails. The reviewer's scope lens returned this card sound: I could not break this card. The reviewer's breakage lens returned this card sound: I tried to find something that this change breaks. I found nothing. The loop moved it from todo/ to human-review/ because it has bounced 1 time between todo and ai-review, all 2 criteria ticked. THE BUILDER COULD NOT ACT ON THAT FINDING. A reviewer reopens every criterion it reports unmet, and the reviews that sent this card back named no criterion they disproved, so it came back with 2 of 2 criteria still ticked, every session found nothing open to do, and the loop promoted it again on the boxes. Add or reopen the criterion the finding breaks and move it back to todo/, or say here why the finding is wrong.
+
+### 2026-10-05 manager (m20261005011031-54b9)
+
+**outcome: rob**
+
+The repository is Pint-clean. Only the CRLF line endings in 5 files in your local copy make the check fail, and the builder cannot change those through a commit.
+
+**what the session said**
+
+The reviewer's finding is wrong for the repository. It only applies to your local copy of 5 files.
+
+- The repository stores all 5 flagged files with LF line endings (`i/lf`).
+- `.gitattributes` says `* text=auto eol=lf`, so any fresh checkout gets LF. That is why the build worktrees pass.
+- Only your main copy in `C:\Dev\timeline` has them as CRLF (`w/crlf`). They are probably stale files from before `.gitattributes` existed.
+- `git status` is clean, so Git sees no change to commit. The builder has nothing to do, and reopening #1 would just send the card straight back.
+
+Your one manual step is to refresh those 5 files from Git in `C:\Dev\timeline`:
+
+```
+git checkout -- app/Models/GroupMember.php config/cors.php database/migrations/2026_02_25_000200_create_audit_logs_table.php database/migrations/2026_02_25_000300_add_mfa_to_users_table.php database/migrations/2026_02_25_000400_add_google_id_to_users_table.php
+.\vendor\bin\pint.bat --test
+```
+
+If `pint --test` then exits 0, the card's work looks finished. You decide whether to close it.
+
+WHY: The repository is Pint-clean. Only the CRLF line endings in 5 files in your local copy make the check fail, and the builder cannot change those through a commit.
+
+OUTCOME: rob
+
