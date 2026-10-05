@@ -11,7 +11,8 @@ export default function GroupSettings() {
     const [invites, setInvites] = useState([]);
     const [loading, setLoading] = useState(true);
     const [groupForm, setGroupForm] = useState({ name: '', description: '' });
-    const [inviteForm, setInviteForm] = useState({ max_uses: 1 });
+    const [inviteForm, setInviteForm] = useState({ max_uses: 1, email: '' });
+    const [inviteMsg, setInviteMsg] = useState(null);
     const [msg, setMsg] = useState('');
 
     useEffect(() => {
@@ -47,10 +48,19 @@ export default function GroupSettings() {
 
     const createInvite = async (e) => {
         e.preventDefault();
+        setInviteMsg(null);
         try {
             const data = await api.post(`/groups/${slug}/invites`, inviteForm);
             setInvites([data.invite, ...invites]);
-        } catch { }
+            if (data.email_sent === true) {
+                setInviteMsg({ ok: true, text: `Invite emailed to ${inviteForm.email}.` });
+                setInviteForm({ ...inviteForm, email: '' });
+            } else if (data.email_sent === false) {
+                setInviteMsg({ ok: false, text: `The code was made, but the email did not go. Send ${data.invite.code} to them by hand.` });
+            }
+        } catch (err) {
+            setInviteMsg({ ok: false, text: err.data?.errors?.email?.[0] || err.data?.message || 'Could not create the invite.' });
+        }
     };
 
     const deleteInvite = async (id) => {
@@ -124,14 +134,30 @@ export default function GroupSettings() {
                                 type="number"
                                 className="form-input"
                                 value={inviteForm.max_uses}
-                                onChange={(e) => setInviteForm({ max_uses: parseInt(e.target.value) || 1 })}
+                                onChange={(e) => setInviteForm({ ...inviteForm, max_uses: parseInt(e.target.value) || 1 })}
                                 min={1}
                                 max={100}
                                 style={{ width: '100px' }}
                             />
                         </div>
-                        <button type="submit" className="btn btn-primary" style={{ marginTop: '18px' }}>Generate Code</button>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label className="form-label">Email to <span className="text-muted">(optional)</span></label>
+                            <input
+                                type="email"
+                                className="form-input"
+                                value={inviteForm.email}
+                                onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                                placeholder="cousin@example.com"
+                            />
+                        </div>
+                        <button type="submit" className="btn btn-primary" style={{ marginTop: '18px' }}>
+                            {inviteForm.email ? 'Generate & Email' : 'Generate Code'}
+                        </button>
                     </form>
+
+                    {inviteMsg && (
+                        <div className={`alert ${inviteMsg.ok ? 'alert-success' : 'alert-error'}`} role="status">{inviteMsg.text}</div>
+                    )}
 
                     {invites.length > 0 && (
                         <div className="invites-list">

@@ -109,7 +109,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/groups/{slug}', [GroupController::class, 'update']);
         Route::put('/groups/{slug}/members/{userId}', [GroupController::class, 'updateMember']);
         Route::delete('/groups/{slug}/members/{userId}', [GroupController::class, 'removeMember']);
-        Route::post('/groups/{slug}/invites', [GroupController::class, 'createInvite']);
+        Route::post('/groups/{slug}/invites', [GroupController::class, 'createInvite'])->middleware('throttle:invite-email');
         Route::get('/groups/{slug}/invites', [GroupController::class, 'invites']);
         Route::delete('/groups/{slug}/invites/{id}', [GroupController::class, 'deleteInvite']);
     });

@@ -60,5 +60,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return Limit::perMinute(60)->by($key);
         });
+
+        // Invite-email throttle: 10 sent per user per hour, to protect the
+        // sending reputation. Invites without an email are not counted.
+        RateLimiter::for('invite-email', function (Request $request) {
+            return $request->filled('email')
+                ? Limit::perHour(10)->by('usr:'.($request->user()?->id ?? $request->ip()))
+                : Limit::none();
+        });
     })
     ->create();

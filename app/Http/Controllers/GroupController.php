@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Group;
 use App\Models\GroupInvite;
 use App\Models\GroupMember;
+use App\Notifications\GroupInviteNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 class GroupController extends Controller
@@ -358,6 +360,7 @@ class GroupController extends Controller
         $request->validate([
             'max_uses' => 'sometimes|integer|min:1|max:100',
             'expires_at' => 'sometimes|nullable|date|after:now',
+            'email' => 'sometimes|nullable|email|max:255',
         ]);
 
         $invite = GroupInvite::create([
@@ -368,7 +371,22 @@ class GroupController extends Controller
             'expires_at' => $request->expires_at,
         ]);
 
-        return response()->json(['invite' => $invite], 201);
+        if (! $request->filled('email')) {
+            return response()->json(['invite' => $invite], 201);
+        }
+
+        // No queue worker runs on production (deploy.sh), so send now. A mail
+        // failure must never lose the invite: report it and carry on.
+        try {
+            Notification::route('mail', $request->input('email'))
+                ->notifyNow(new GroupInviteNotification($invite, $group, $request->user()));
+            $sent = true;
+        } catch (\Throwable $e) {
+            report($e);
+            $sent = false;
+        }
+
+        return response()->json(['invite' => $invite, 'email_sent' => $sent], 201);
     }
 
     /**
