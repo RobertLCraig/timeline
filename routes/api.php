@@ -6,6 +6,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\GroupController;
+use App\Http\Controllers\TimelineExportController;
 use App\Http\Controllers\TokenController;
 use App\Http\Controllers\UploadController;
 use App\Http\Controllers\VisibilityController;
@@ -119,6 +120,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/groups/{slug}/invites', [GroupController::class, 'createInvite'])->middleware('throttle:invite-email');
         Route::get('/groups/{slug}/invites', [GroupController::class, 'invites']);
         Route::delete('/groups/{slug}/invites/{id}', [GroupController::class, 'deleteInvite']);
+
+        // Download the whole timeline as a zip, or load one back (card 0012)
+        Route::get('/groups/{slug}/export', [TimelineExportController::class, 'export']);
+        Route::post('/groups/{slug}/import', [TimelineExportController::class, 'import'])
+            ->middleware(['ability:events:write', 'throttle:events-write']);
     });
 
     // Group owner routes

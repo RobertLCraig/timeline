@@ -14,6 +14,8 @@ export default function GroupSettings() {
     const [inviteForm, setInviteForm] = useState({ max_uses: 1, email: '' });
     const [inviteMsg, setInviteMsg] = useState(null);
     const [msg, setMsg] = useState('');
+    const [importing, setImporting] = useState(false);
+    const [importMsg, setImportMsg] = useState(null);
 
     useEffect(() => {
         loadAll();
@@ -77,6 +79,25 @@ export default function GroupSettings() {
         if (!confirm('Remove this member?')) return;
         await api.delete(`/groups/${slug}/members/${userId}`);
         setMembers(members.filter(m => m.id !== userId));
+    };
+
+    const importZip = async (e) => {
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (!file) return;
+        setImporting(true);
+        setImportMsg(null);
+        try {
+            const form = new FormData();
+            form.append('file', file);
+            const data = await api.post(`/groups/${slug}/import`, form);
+            const skipped = data.rejected.length ? ` Skipped ${data.rejected.length}: ${data.rejected.join('; ')}` : '';
+            setImportMsg({ ok: true, text: `Added ${data.created} events, updated ${data.updated}.${skipped}` });
+        } catch (err) {
+            setImportMsg({ ok: false, text: err.data?.errors?.file?.[0] || err.data?.message || 'Could not load that zip.' });
+        } finally {
+            setImporting(false);
+        }
     };
 
     const deleteGroup = async () => {
@@ -221,6 +242,25 @@ export default function GroupSettings() {
                             </div>
                         ))}
                     </div>
+                </section>
+
+                {/* Export / Import */}
+                <section className="settings-section card fade-in">
+                    <h2>Download &amp; Restore</h2>
+                    <p className="text-muted text-sm mb-md">
+                        Download every event and photo as one zip. Load a zip back to restore it here;
+                        events already loaded from the same zip are updated, not copied.
+                    </p>
+                    <div className="flex gap-md items-center flex-wrap">
+                        <a href={`/api/groups/${slug}/export`} className="btn btn-primary" download>Download Timeline</a>
+                        <label className="btn btn-secondary">
+                            {importing ? 'Loading…' : 'Load a Timeline Zip'}
+                            <input type="file" accept=".zip,application/zip" onChange={importZip} disabled={importing} hidden />
+                        </label>
+                    </div>
+                    {importMsg && (
+                        <div className={`alert ${importMsg.ok ? 'alert-success' : 'alert-error'} mt-md`} role="status">{importMsg.text}</div>
+                    )}
                 </section>
 
                 {/* Danger Zone */}
