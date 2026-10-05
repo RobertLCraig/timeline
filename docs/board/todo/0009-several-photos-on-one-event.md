@@ -502,3 +502,78 @@ VERDICT: defect
 - **#1 was named by the acceptance lens and is not a ticked criterion here**, so nothing was changed: an MCP re-import with the same `import_hash` and no photo fields still sends `image_url` as null, so `EventCreator::photoFields` removes the first saved photo on every run and the gallery is not kept as given.
 - **#1 was named by the breakage lens and is not a ticked criterion here**, so nothing was changed: an MCP re-import with the same `import_hash` and no photo fields sends `image_url` as null, so `EventCreator::photoFields` deletes the first saved photo on every run and the gallery is not kept as given.
 
+### 2026-10-05 review (v20261005145848-6fab)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 27s, run by this job rather than reported by the card.
+
+**acceptance: defect**
+
+**The bug is still there.** It is the same one the last four reviews found.
+
+- **#2, #3, #4 and #5 work.** Each one traces to real code:
+  - #2: `EventCreator::photoFields` always sets `image_url` to `$urls[0]`.
+  - #3: `max:Event::MAX_PHOTOS` is on the REST and MCP post and update paths.
+  - #4: a photo change goes through the same edit check as every other field.
+  - #5: the `Event::imageUrls` getter turns a NULL column into `[image_url]`.
+- **#6 is a manual check.** It is not a finding. You must try it in a browser.
+
+**What breaks (#1)**
+
+- `PostTimelineEventTool::handle` sends `image_urls` only when the caller sends it.
+- But it always sends `'image_url' => $validated['image_url'] ?? null`. So the key is there with a null value, even when the caller sent no photo.
+- `EventCreator::importUpsert` finds an event with the same `import_hash`. The data then goes to `EventCreator::photoFields`.
+- `photoFields` sees `image_url` set to null and runs `array_shift`. This deletes the first saved photo.
+- So each re-run of the same import deletes one more photo. The cover changes each time.
+- No test runs an import twice on an event with several photos.
+
+**Fix:** In `PostTimelineEventTool::handle`, send `image_url` only when the caller sends it. Use `array_intersect_key`, as the code already does for `image_urls`. Then add a test that runs the import twice on an event with several photos.
+
+UNMET: #1 an MCP re-import with the same `import_hash` and no photo fields still sends `image_url` as null, so `EventCreator::photoFields` deletes the first saved photo on every run and the gallery is not kept as given.
+
+VERDICT: defect
+
+**scope: sound**
+
+The work stays inside what the card asked for. Nothing goes over the "Not this card" fence.
+
+**What I checked:**
+- **Build commit `3213346`.** It changes only the files the card's Tasks name, plus the docs and `public/build/`.
+- **The upload path.** The commit does not touch `UploadController`, `POST /api/upload` or `resources/js/lib/nsfwScan.js`. The changes to those files in the big diff came from other cards (0006, 0008, 0010, 0011 and 0012).
+- **`album_url`.** It is still there.
+- **The migration.** `add_image_urls_to_events_table::up` only adds one column. The column can be empty (nullable), so old rows keep working.
+- **Things the card said not to build.** I found no captions, no drag-to-reorder and no per-photo visibility.
+- **One extra thing.** `EventForm.jsx` has a remove button for each photo. You need it to make a gallery smaller, so I count it as part of editing a list.
+- **Unfinished work.** Every task has code behind it. The task boxes on the card are still not ticked, but that is only the card's paperwork. Criterion #6 is a manual check, so it is not a finding.
+
+**Not part of this check:** the bug where an MCP re-import removes one photo each time belongs to the breakage review. It is a bug, not a scope problem.
+
+VERDICT: sound
+
+**breakage: defect**
+
+I checked the code again. The bug that the earlier reviews found is still not fixed.
+
+**The bug: running the same MCP import again deletes one photo each time.**
+
+- `PostTimelineEventTool::handle` sends `image_urls` only when the caller sent it. It uses `array_intersect_key` to do this.
+- The same function always sends `'image_url' => $validated['image_url'] ?? null`. So the `image_url` key is there, set to null, even when the caller sent no photo.
+- `EventCreator::importUpsert` finds an event with the same `import_hash` and calls `applyUpdate`.
+- In `EventCreator::photoFields`, there is no `image_urls`, but there is an `image_url` key set to null. So the code removes the first saved photo.
+- Each re-run takes away one more photo, and the cover photo changes each time. The `importUpsert` docblock (the comment above the function) says a re-run is "safe". That is now false.
+- No test runs an import again on an event that has several photos.
+
+**An old note in the docs:** the `TimelineServer` instructions still say "pass an empty string to remove one". For `image_url`, an empty string now removes only the cover photo. The other photos stay.
+
+**The fix:** send `image_url` only when the caller sent it, in the same way the code already does for `image_urls`. Then add a test that runs the same import twice on an event with several photos.
+
+UNMET: #1 an MCP re-import with the same `import_hash` and no photo fields still sends `image_url` as null, so `EventCreator::photoFields` removes the first saved photo on every run and the gallery is not kept as given.
+
+VERDICT: defect
+
+**acceptance**
+
+- **#1 was named by the acceptance lens and is not a ticked criterion here**, so nothing was changed: an MCP re-import with the same `import_hash` and no photo fields still sends `image_url` as null, so `EventCreator::photoFields` deletes the first saved photo on every run and the gallery is not kept as given.
+- **#1 was named by the breakage lens and is not a ticked criterion here**, so nothing was changed: an MCP re-import with the same `import_hash` and no photo fields still sends `image_url` as null, so `EventCreator::photoFields` removes the first saved photo on every run and the gallery is not kept as given.
+
