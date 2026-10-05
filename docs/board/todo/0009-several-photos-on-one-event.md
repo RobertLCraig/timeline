@@ -81,3 +81,61 @@ Criterion 6 NOT met: it needs a browser check of EventModal on timeline.test, an
 Environment note: `npm run build` first failed because node_modules (here and in C:\Dev\timeline) lacks nsfwjs and @tensorflow/tfjs, which package.json/package-lock already list since card 0001. I ran `npm install` in this worktree only; package files did not change. Rob's checkout needs `npm install` before his next build.
 
 The card's Plan says `.\vendor\bin\pest.bat`; this repo has no Pest, so the suite ran with `.\vendor\bin\phpunit.bat`. Pint passed.
+
+### 2026-10-05 review (v20261005062520-4a9a)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 32s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+I checked each criterion against the code. I could not break any of them.
+
+1. **Photos kept in order.** `App\Support\EventCreator::photoFields` uses `array_values` on the list you send. `App\Models\Event::imageUrls` stores the list as JSON. That keeps the order. REST and MCP both send their checked data through `EventCreator::create` and `applyUpdate`.
+2. **First photo is the cover.** `photoFields` always returns `image_url = $urls[0]`. In `create`, the `+` operator keeps the `photoFields` values over the `null` defaults, so the cover is set correctly.
+3. **More than 20 photos is refused.** The rule `max:Event::MAX_PHOTOS` is in `EventController::store` and `update`, and in `PostTimelineEventTool::handle` and `UpdateTimelineEventTool::handle`.
+4. **Only the right people can change photos.** The photo change goes through the same edit check as every other field. The test `McpAuthorizationTest::test_a_non_owner_cannot_change_event_photos` tries both REST and MCP. It also checks that the database did not change.
+5. **Old events show one photo.** When `image_urls` is NULL, the `Event::imageUrls` getter returns `[image_url]`.
+6. **Step through photos in the pop-up.** This one is `proves: manual`, so it is not a finding. It waits for a person to check it in a browser.
+
+VERDICT: sound
+
+**scope: sound**
+
+The work on card 0009 stays inside its fence. It does nothing extra that you need to fix.
+
+**Findings**
+
+- The diff I was given is very large, but most of it is from other cards. The changes to `UploadController` came from card 0006 (the Pint clean-up, commit `22c2bde`). The changes to `nsfwScan.js` came from card 0008 (commit `2cef4ec`). The invite email work (`GroupController::createInvite`, `InviteEmailTest`) came from card 0010 (commit `f7afd7e`).
+- The commit that builds this card is `3213346`. It touches only the files that the card's Tasks name, plus the docs and `public/build/`. It does not touch `UploadController`, `POST /api/upload` or `nsfwScan.js`. It keeps `album_url`.
+- The migration `add_image_urls_to_events_table::up` is additive. It adds one nullable JSON column and does not change `image_url`.
+- `Event::imageUrls` is an accessor on a real column, so REST responses include the list.
+- It added one thing the card did not ask for: a button to remove each photo in `EventForm.jsx`. This is small, and without it you could not make a gallery smaller. It is not drag reordering, captions or per-photo visibility, so it does not go over the fence.
+- Criterion #6 is open. It is a `manual` check, so it is not a finding. It is yours to try in the browser on `timeline.test`.
+
+VERDICT: sound
+
+**breakage: defect**
+
+I found one real defect.
+
+**Defect: re-running an MCP import eats one photo each time.**
+
+- `PostTimelineEventTool::handle` always sends `'image_url' => $validated['image_url'] ?? null` to `EventCreator::importUpsert`. It does this even when the caller sent no `image_url`.
+- When the `import_hash` matches an existing event, `applyUpdate` calls `photoFields`. That function sees `image_url` is null and runs `array_shift`. This removes the cover photo.
+- So each re-run of an import with no photo fields removes one more photo. A 5-photo gallery becomes 4, then 3, and so on, and the cover changes each time.
+- `importUpsert`'s docblock says a re-run import is "safe". That is now false.
+- No test builds this case. `EventPhotosTest` never re-runs an import on an event that has a gallery.
+- REST `store` is safe. `validate()` only returns the keys the request actually sent.
+
+**Small stale doc:** the `TimelineServer` instructions still say "pass an empty string to remove one". For `image_url`, an empty string now removes only the cover. The other photos stay.
+
+UNMET: #1 an MCP re-import (same `import_hash`) with no `image_url` sends null, so `photoFields` removes the first stored photo on every run, and the stored gallery does not stay as given.
+
+VERDICT: defect
+
+**acceptance**
+
+- **#1 was named by the breakage lens and is not a ticked criterion here**, so nothing was changed: an MCP re-import (same `import_hash`) with no `image_url` sends null, so `photoFields` removes the first stored photo on every run, and the stored gallery does not stay as given.
+
