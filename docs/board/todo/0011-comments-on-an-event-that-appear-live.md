@@ -245,3 +245,78 @@ VERDICT: defect
 - **#6 was named by the acceptance lens and is not a ticked criterion here**, so nothing was changed: posting a comment moves the client's `since` marker past any comment another member made since the last poll, so that comment never appears without a reload.
 - **#6 was named by the breakage lens and is not a ticked criterion here**, so nothing was changed: posting your own comment moves the client's `since` marker past any comment another member made since the last poll, so that comment never appears without a reload.
 
+### 2026-10-07 review (v20261007071814-dab6)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 27s, run by this job rather than reported by the card.
+
+**acceptance: defect**
+
+Criteria #1 to #5 are met. The server code does what each one says:
+
+- **#1:** `CommentController::store` saves the comment with the event, the author and the time. Before that, `CommentController::visibleEvent` checks that the user can see the event.
+- **#2:** `CommentController::visibleEvent` checks membership, then uses `Event::visibleIn`. That is the same visibility rule that `EventController::index` uses. A user who cannot see the event gets the same 404 as for a missing event.
+- **#3:** `CommentController::index` sends back only comments created after `since`.
+- **#4:** `CommentController::destroy` lets the author, a group admin or owner, or a super admin delete. Anybody else gets a 403.
+- **#5:** the `comments-write` limiter is on the post route only.
+
+**#6 can fail. The bug the last two reviews found is still in the code.** It is in `resources/js/components/views/EventModal.jsx`, in `Comments`:
+
+- `send` calls `merge([data.comment])` with your own new comment.
+- `merge` then moves `latest.current` to that comment's time. `latest.current` is the "newer than" time for the next poll.
+- So a comment another member posts after your last poll, but before your post, is older than that time. The next poll skips it. It shows only after you close and open the pop-up again.
+- This happens when two people comment at about the same time. That is the case #6 is about.
+
+The fix is small. In `send`, add your comment to the list, but do not move `latest.current`.
+
+UNMET: #6 `send` in `EventModal.jsx` passes your own new comment through `merge`, which moves the `since` time past any comment another member posted since the last poll, so that comment never shows without a reload.
+
+VERDICT: defect
+
+**scope: sound**
+
+I checked what this card changed against what it asked for. Nothing goes past the fence.
+
+**What I checked**
+- All the comments work is in one commit, `c5f2499`, with 17 files. Every file belongs to this card: the migration, `CommentController`, `EventComment`, `Event::visibleIn`, the `comments-write` limiter in `bootstrap/app.php`, the routes, `EventModal.jsx`, the CSS, the tests, the rebuilt `public/build/`, `HANDOVER.md` and card 0014.
+- The other files in the big diff come from other cards: 0006 (the pint tidy-up), 0009, 0010 and 0012. This card did not grow into them.
+- The "Not this card" fence holds. There are no WebSockets, Reverb or Pusher. There are no notifications. There are no reactions, threads, comment edits or MCP comment tools.
+- `Event::visibleIn` is not extra work. Plan step 1 asked for the visibility rule to live in one place.
+- All five tasks are done.
+
+**Outside my lens**
+- The `since` bug that the breakage reviewer found is real. In `EventModal.jsx`, in `Comments`, `send` calls `merge`, and that moves `latest.current` past other people's comments. It is a bug, not a scope problem, so I write no `UNMET:` line for it.
+- Criterion #6 is a manual check. It stays with you, Rob.
+
+VERDICT: sound
+
+**breakage: defect**
+
+The bug is still there. Two reviews found it before me, and nobody fixed it.
+
+**The bug: `resources/js/components/views/EventModal.jsx`, in `Comments`, the `send` and `merge` functions**
+
+- `merge` moves `latest.current` to the time of the newest comment it gets. The next poll asks only for comments newer than `latest.current`.
+- When you post, `send` calls `merge([data.comment])` with your own new comment. That moves `latest.current` to "now".
+- Example:
+  - You poll at 0 s.
+  - Another member comments at 5 s.
+  - You post at 8 s, so `latest.current` is now 8 s.
+  - The comment from 5 s never shows. You must close and open the pop-up again to see it.
+- This happens when two people talk at the same time. That is the normal way people use comments.
+- The tests do not catch this. They test only the server, and the server works correctly.
+
+**A smaller problem:** if someone else deletes a comment, it stays on your screen until you open the pop-up again.
+
+**The fix:** in `send`, add the new comment to the list. Do not move `latest.current`.
+
+UNMET: #6 posting your own comment moves the client's `since` marker past any comment another member posted since the last poll, so that comment never shows without a reload.
+
+VERDICT: defect
+
+**acceptance**
+
+- **#6 was named by the acceptance lens and is not a ticked criterion here**, so nothing was changed: `send` in `EventModal.jsx` passes your own new comment through `merge`, which moves the `since` time past any comment another member posted since the last poll, so that comment never shows without a reload.
+- **#6 was named by the breakage lens and is not a ticked criterion here**, so nothing was changed: posting your own comment moves the client's `since` marker past any comment another member posted since the last poll, so that comment never shows without a reload.
+
