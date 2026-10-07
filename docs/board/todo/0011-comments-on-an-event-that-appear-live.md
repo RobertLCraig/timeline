@@ -92,3 +92,80 @@ Assumed: comments are for group members (plus super admin) only. A non-member wh
 Known ceiling, marked with a ponytail: comment: `since` is second-precision, so a comment written in the same second as the client's newest one can be missed by the next poll. The client de-duplicates by id.
 
 Worktree notes: there is no Pest in this repo; the suite is `.\vendor\bin\phpunit.bat` (pest.bat does not exist). The copied node_modules was stale (`nsfwjs/core` unresolved); `npm ci` fixed it and `npm run build` passed. pint passes on every PHP file touched.
+
+### 2026-10-07 review (v20261007031447-f4f3)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 24s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+I tried to break each of the six acceptance criteria and could not. The project's own test suite was green before I started.
+
+- **#1 Post a comment:** `CommentController::store` saves the comment with the event, the author and the time. `CommentController::visibleEvent` checks the user can see the event first. The test checks all three saved values.
+- **#2 Hidden event:** `CommentController::visibleEvent` uses `Event::visibleIn`, which checks both visibility layers. The timeline query in `EventController::index` uses the same rule, so there is one copy. A user who cannot see the event gets a 404 with the same body as a missing event. The test covers four cases: an outsider, a private event, an event above the user's social tier, and an event that does not exist.
+- **#3 Only newer comments with `since`:** `CommentController::index` returns only comments created after the `since` time. A quiet poll returns an empty list, and the test checks this.
+- **#4 Delete:** `CommentController::destroy` lets the author, a group admin or owner, or a super admin delete. Any other user gets a 403. The test checks a plain member, the author, an admin and the owner.
+- **#5 Rate limit:** the `comments-write` limiter in `bootstrap/app.php` applies only to the post route in `routes/api.php`. The 11th post gets a 429.
+- **#6 Show without a reload:** this needs a person to test it in two browsers. The code can pass it. `EventModal.jsx` polls on a timer, stops when the tab is not visible, and sends `since`. One limit: the vertical timeline view does not use `EventModal`, so to test it, use the calendar, heatmap or photos view.
+
+VERDICT: sound
+
+**scope: sound**
+
+I found nothing in the comments work that goes past what the card asked for.
+
+**What I checked:**
+- The comments work is one commit, `c5f2499`. All of its 17 files belong to this card. They are the migration, `CommentController`, `EventComment`, the `comments-write` limit in `bootstrap/app.php`, the routes, `EventModal.jsx`, the CSS, the tests, the rebuilt `public/build/`, `HANDOVER.md` and the new card 0014.
+- The large diff also holds other cards' commits. These are the pint clean-up (0006), several photos (0009), invite email (0010) and export (0012). They are not this card's growth.
+- The "Not this card" list is not crossed. There is no WebSocket, Reverb or Pusher. There are no notifications. There are no reactions, threads, comment edits or MCP comment tools.
+- `Event::visibleIn` in `app/Models/Event.php` moves the rule that `EventController::index` used into one shared place. Plan step 1 asked for this, so it is not extra work.
+- The migration only adds a new table. When an event is deleted, its comments are deleted too (`cascadeOnDelete`).
+
+**Things still open, but not defects:**
+- The vertical timeline view does not use `EventModal`, so comments do not show there. The card named only `EventModal.jsx`, and the builder wrote this gap down.
+- People who are not members of the group cannot read comments on a public event. The card says "a group member", so this matches the card.
+- Criterion #6 is a manual test with two browsers. That is your test, Rob, and nothing in the code stops it from passing.
+
+No criterion is disproved.
+
+VERDICT: sound
+
+**breakage: defect**
+
+I found one real problem. Your own comment can hide another member's comment.
+
+**The fault (`resources/js/components/views/EventModal.jsx`, `Comments` → `send` and `merge`)**
+
+- `merge` moves the `since` marker (`latest.current`) to the time of the newest comment it adds.
+- `send` calls `merge([data.comment])` with your own new comment. That moves the marker forward to now.
+- Example:
+  - You poll at 0 s.
+  - Another member comments at 5 s.
+  - You post at 8 s, so the marker is now 8 s.
+  - Your next poll asks only for comments newer than 8 s.
+  - The comment from 5 s never shows. You must close and open the pop-up again to see it.
+- This happens in the normal case: two people talking at the same time. The tests do not catch it. They only test the server, and the server does the right thing for the `since` value it gets.
+
+**Small extras (not criterion failures)**
+
+- If someone else deletes a comment, it stays on your screen until you open the pop-up again.
+- The "second-precision" note is not the only way to lose a comment. The marker jump above loses more.
+
+**The fix**
+
+Option A: in `send`, add the new comment to the list but do not move `latest.current`. Then the next poll gets everything newer than the last poll.
+
+Option B: poll by comment id (`after_id`), not by time.
+
+I would choose option A. It is the smaller change.
+
+UNMET: #6 posting your own comment moves the client's `since` marker past any comment another member made since the last poll, so that comment never appears without a reload.
+
+VERDICT: defect
+
+**acceptance**
+
+- **#6 was named by the breakage lens and is not a ticked criterion here**, so nothing was changed: posting your own comment moves the client's `since` marker past any comment another member made since the last poll, so that comment never appears without a reload.
+
