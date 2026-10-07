@@ -149,3 +149,36 @@ VERDICT: sound
 
 
 **2026-10-07** The reviewer's acceptance lens returned this card sound: I checked each of the six acceptance rules against the code. All six are met. I found no defect. The reviewer's scope lens returned this card defect: **Findings (scope lens)**. The reviewer's breakage lens returned this card sound: I tried to break the export and import. I could not. The loop moved it from todo/ to human-review/ because it has bounced 1 time between todo and ai-review, all 6 criteria ticked. THE BUILDER COULD NOT ACT ON THAT FINDING. A reviewer reopens every criterion it reports unmet, and the reviews that sent this card back named no criterion they disproved, so it came back with 6 of 6 criteria still ticked, every session found nothing open to do, and the loop promoted it again on the boxes. Add or reopen the criterion the finding breaks and move it back to todo/, or say here why the finding is wrong.
+
+### 2026-10-07 manager (m20261007151727-d992)
+
+**outcome: question**
+
+The export leaves out other members' private events on purpose, and only the owner can say whether a full backup or members' privacy comes first.
+
+**The question:** When an admin downloads a group, must the zip include the private events of other members, so a restore is complete?
+
+**what the session said**
+
+I read `TimelineExportController::export`. The scope lens is right about the code. The query leaves out every event marked `private`, except the ones the exporting admin made. A code comment says this was done on purpose.
+
+The fix is not a builder chore. If I untick #1, the builder can only make one of two choices:
+
+1. **Put the private events in the zip.** Then an admin can download the private events of other members. That is a privacy change.
+2. **Keep them out.** Then the backup has gaps.
+
+This is the owner's choice about privacy, so I did not reopen #1.
+
+The other findings break no criterion:
+- The export writes `import_hash` in a GET request (`TimelineExportController::export`).
+- The Tasks boxes are still open.
+- The diff holds work from other cards.
+
+Give these to the builder after you answer the question.
+
+QUESTION: When an admin downloads a group, must the zip include the private events of other members, so a restore is complete?
+
+WHY: The export leaves out other members' private events on purpose, and only the owner can say whether a full backup or members' privacy comes first.
+
+OUTCOME: question
+
