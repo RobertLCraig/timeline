@@ -87,3 +87,58 @@ Test-first: criteria 1, 4, 5, 6 were watched failing for their stated reason bef
 Notes: vendor/bin has no pest.bat; the suite is PHPUnit, run with `php artisan test`. `npm run build` first failed because node_modules (here and in C:\Dev\timeline) lacked nsfwjs although package-lock.json lists it; `npm install` from the lock fixed it here, and C:\Dev\timeline needs the same before its next build. A throttled request also counts a bad-address attempt toward the 10, as the throttle runs before validation.
 
 Still needs a person: a browser check of the Group Settings form (Herd serves C:\Dev\timeline, not this worktree), and card 0013 before mail can reach anyone from production.
+
+### 2026-10-07 review (v20261007020540-fdf2)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 20s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+I checked all six acceptance criteria against the code and could not break any of them.
+
+1. **An email goes out with the code and a join link.** `GroupController::createInvite` sends one `GroupInviteNotification` to the address. The test checks the address, the code in the text and the link to `/g/{slug}`.
+2. **No email means nothing is sent.** `createInvite` returns early when there is no `email`. The reply has no `email_sent` field, so it is the same as before.
+3. **A plain member is refused.** The route in `routes/api.php` sits inside the `group.role:owner,admin` group. The test gets 403, no mail and no invite.
+4. **A bad address is refused.** The `email` rule in `createInvite` runs before `GroupInvite::create`. The test gets 422 and no invite row.
+5. **Too many emails are refused.** The `invite-email` limiter in `bootstrap/app.php` allows 10 per user per hour, and the route uses it. Invites with no email are not counted. The test gets 429 on the 11th.
+6. **A mail failure still keeps the invite.** In `createInvite`, a `try`/`catch` around `notifyNow` calls `report()` and returns `email_sent: false`. The invite is already saved by then. `GroupSettings.jsx` shows "the email did not go" and gives the code to send by hand.
+
+Two small notes. Neither one breaks a criterion:
+- The failure test uses a mailer name that does not exist. It does not test a real SMTP (mail server) error. The `catch (\Throwable)` still covers that case.
+- A bad-address request still counts toward the limit of 10, because the limit is checked before the address.
+
+VERDICT: sound
+
+**scope: sound**
+
+I checked the scope of this card's own work. I found no change over the "Not this card" fence, and nothing left half done.
+
+- **`GroupController::createInvite`**: Adds only the optional `email` field. It sends now, inside `try`. It does not change how a code is redeemed. A request with no email gets the same reply as before.
+- **The `invite-email` limiter in `bootstrap/app.php` and the route in `routes/api.php`**: The limiter is per user, 10 per hour, and counts only requests that carry an email. It sits on the existing route, which is in the owner/admin group. It adds no new route.
+- **`GroupInviteNotification`**: Uses the mailer the app already has. It adds no mail package, no `.env` or provider change, no resend, and no tracking.
+- **The other files in the diff**: The Pint reformatting, photos (0009), comments (0011) and export (0012) come from other cards on the same branch. This card did not make them. Its "TOUCHED" list does not name them.
+- **All six tasks are in place**, and the test file exists. The suite is green.
+
+The browser check of the Group Settings form is a person's task. It is not a finding. I did not disprove any criterion.
+
+VERDICT: sound
+
+**breakage: sound**
+
+I tried to break the invite email work. I could not break it, so the verdict is sound.
+
+**What I checked:**
+- **Only admins can send.** The route is in the owner/admin group in `routes/api.php`. A plain member gets 403 before anything is sent.
+- **The rate limit.** The `invite-email` limit in `bootstrap/app.php` allows 10 emails per user per hour. It counts only requests that carry an email. Its comment is still true.
+- **A failed send.** `GroupController::createInvite` creates the invite first, then tries to send. If the mailer throws, it still returns the invite with `email_sent: false`. Without an email, the reply is the same as before.
+- **The join link works.** The link goes to `/g/{slug}`. The group page shows any group to anyone (the server function `GroupController::show` does not block it). If the person is signed in and not a member, `GroupTimeline.jsx` shows a "Join this group" box with a code field. The email text in `GroupInviteNotification::toMail` says exactly that.
+- **The form.** `GroupSettings.jsx` reads `email_sent` and shows the matching message. It also shows the email error from the server.
+
+**One gap, not a defect:** the MCP tool `CreateGroupInviteTool` cannot send an email. The card asks only for the web route, so no criterion fails. `AGENTS.md` makes no claim about email, so it is still true.
+
+No criterion is disproved, so there are no `UNMET:` lines.
+
+VERDICT: sound
+
