@@ -147,3 +147,5 @@ VERDICT: sound
 
 - **#1 was named by the scope lens and is not a ticked criterion here**, so nothing was changed: the export filters out other members' private events, so the zip does not hold all of the group's events and a restore loses them.
 
+
+**2026-10-07** The reviewer's acceptance lens returned this card sound: I checked each of the six acceptance rules against the code. All six are met. I found no defect. The reviewer's scope lens returned this card defect: **Findings (scope lens)**. The reviewer's breakage lens returned this card sound: I tried to break the export and import. I could not. The loop moved it from todo/ to human-review/ because it has bounced 1 time between todo and ai-review, all 6 criteria ticked. THE BUILDER COULD NOT ACT ON THAT FINDING. A reviewer reopens every criterion it reports unmet, and the reviews that sent this card back named no criterion they disproved, so it came back with 6 of 6 criteria still ticked, every session found nothing open to do, and the loop promoted it again on the boxes. Add or reopen the criterion the finding breaks and move it back to todo/, or say here why the finding is wrong.
