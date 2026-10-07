@@ -86,3 +86,64 @@ Assumptions, for the reviewer:
 Open point for the deploy: nothing in deploy.sh, composer.json or HANDOVER.md says whether ext-zip is on for production PHP. It is on in local Herd. Check hPanel -> PHP Extensions before using this on the live site.
 
 Not checked: the browser. Herd serves C:\Dev\timeline, not this worktree. The Download link is a plain GET that relies on the session cookie and the Referer being sent; that still needs a look in Edge. This worktree's node_modules was stale (nsfwjs/core did not resolve); npm ci here fixed it, so the mobilenet chunk hash changed in public/build too. pest.bat is not in vendor/bin here; the suite ran with php artisan test (PHPUnit), and pint.bat passed.
+
+### 2026-10-07 review (v20261007130851-8bdd)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 26s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+I checked each of the six acceptance rules against the code. All six are met. I found no defect.
+
+1. **Export gives a zip.** `TimelineExportController::export` builds `timeline.json` with `ZipArchive`. It adds every file under `/uploads/` that the group's events use as `photos/<name>`.
+2. **A plain member or an outsider is refused.** In `routes/api.php`, the export and import routes are in the `group.role:owner,admin` block. The test checks that both get a 403.
+3. **Import makes the events again.** `TimelineExportController::import` creates the group's categories with `EventCategory::create`. It writes the photos with `importPhotos`. It saves each event through `EventCreator::importUpsert`.
+4. **A second import updates and does not copy.** The export puts an `import_hash` on each event, and `importUpsert` matches on that hash. The test also loads the zip back into the group it came from.
+5. **Bad zip entries are refused.** `importPhotos` takes only entries that sit directly in `photos/` and are no bigger than 5 MB. The content must read as an image (`getimagesizefromstring`). It writes each file as `sha1(content).ext` in `public_path('uploads')` and never uses `extractTo`.
+6. **No personal data in the zip.** `export` writes only the event fields, the group's name and description, and the category name, icon and colour. There are no user ids, emails or tokens.
+
+One choice is yours to look at, but it does not break a rule. The export leaves out other members' private events, even for an admin.
+
+VERDICT: sound
+
+**scope: defect**
+
+**Findings (scope lens)**
+
+1. **The export leaves out events. The card asks for the whole timeline.** See `TimelineExportController::export`. The query drops every event whose `visibility` or `social_visibility` is `private`, unless the exporting admin created it. The card title says "a whole timeline". Criterion #1 says "the group's events". The card's "Why" is a family backup if the host loses the data. These events are not in the zip, so a restore loses them. The builder made this choice and wrote it down as an assumption. But it narrows a promise the card states. It is not an open question.
+
+2. **The export writes to the database.** `TimelineExportController::export` stamps `import_hash` on events and calls `saveQuietly()`. A GET request now changes production rows. The card did not ask for this. The card's Plan step 2 says the hashes already exist. A safer way: derive the hash in the export without saving it, and match on it at import.
+
+3. **Half done.** All four `## Tasks` boxes are still open. Nobody has checked the Download link in a browser. The builder says it relies on the cookie and the Referer header. The ext-zip open point is not written on the card's body as a deploy item.
+
+4. **The diff is much bigger than this card.** It also holds work from cards 0009, 0010 and 0011, a Pint reformat, and a DemoSeeder rewrite. The builder's TOUCHED list does not name these files, so they most likely come from the branch base. They break none of this card's criteria.
+
+UNMET: #1 the export filters out other members' private events, so the zip does not hold all of the group's events and a restore loses them.
+
+VERDICT: defect
+
+**breakage: sound**
+
+I tried to break the export and import. I could not.
+
+**What I checked**
+
+- **Import, twice.** `EventCreator::importUpsert` looks up the event by group and `import_hash`. The export writes that hash onto each event. So a second import updates the events. It does not make copies. This is true for the same group and for a new group.
+- **Unsafe zips.** `TimelineExportController::importPhotos` takes an entry only when its name is exactly `photos/<name>`. It checks that the bytes are a real image. It saves the file under a new name made from a hash of its content. It never uses `extractTo`. So nothing gets written outside `public/uploads/`.
+- **Photo links.** `export` and `import` both name photos by their path in the zip. Both keep `http(s)` links as links. The two sides agree.
+- **Personal data.** `export` writes only event fields and the category name, icon and colour. It writes no `created_by`, user ids, emails or tokens.
+- **Comments in the code.** I found no comment that the change made false.
+
+**Small risks. These do not break a criterion.**
+
+- An event that points to an `/uploads/` file that is missing from disk loses that photo in the export. You get no warning.
+- A token with only `events:read` can call export. The export also writes `import_hash` to the events table.
+
+VERDICT: sound
+
+**acceptance**
+
+- **#1 was named by the scope lens and is not a ticked criterion here**, so nothing was changed: the export filters out other members' private events, so the zip does not hold all of the group's events and a restore loses them.
+
