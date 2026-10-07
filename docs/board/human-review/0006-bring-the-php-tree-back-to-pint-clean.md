@@ -52,3 +52,32 @@ One bare `.\vendor\bin\pint.bat` run, committed alone (22c2bde). Same 30 files t
 **2026-10-07** Not a decision for Rob, so the card goes back to `todo/`. Re-checked today: the five files are still `w/crlf` and `git status` is clean. An agent finishes it in `C:\Dev\timeline`. First run `git checkout -- app/Models/GroupMember.php config/cors.php database/migrations/2026_02_25_000200_create_audit_logs_table.php database/migrations/2026_02_25_000300_add_mfa_to_users_table.php database/migrations/2026_02_25_000400_add_google_id_to_users_table.php`. This rewrites only line endings, because git sees no change. Then run `.\vendor\bin\pint.bat --test`. If it exits 0, move the card to `done/`. The loop and manager entries were removed; git has them.
 
 **2026-10-07** The reviewer returned this card and its finding is the last review entry at the bottom of ## Direction. The loop moved it from todo/ to human-review/ because it has bounced 1 time between todo and ai-review, all 2 criteria ticked. THE BUILDER COULD NOT ACT ON THAT FINDING. A reviewer reopens every criterion it reports unmet, and the reviews that sent this card back named no criterion they disproved, so it came back with 2 of 2 criteria still ticked, every session found nothing open to do, and the loop promoted it again on the boxes. Add or reopen the criterion the finding breaks and move it back to todo/, or say here why the finding is wrong.
+
+### 2026-10-07 manager (m20261007034649-4f70)
+
+**outcome: rob**
+
+The repository is already Pint-clean, the builder's worktree cannot see the CRLF files in Rob's copy, and the card looks finished apart from that one local step.
+
+**what the session said**
+
+I checked the five files. The repository is clean. Only your copy on disk has the wrong line endings.
+
+- **Git stores the files with LF line endings.** `git ls-files --eol` shows `i/lf w/crlf` for the five files, and `.gitattributes` sets `* text=auto eol=lf`. A fresh checkout passes `pint --test`.
+- **Your copy at `C:\Dev\timeline` has CRLF line endings.** Pint reports those five files because of this.
+- **The builder cannot fix this.** It works in `C:\Users\r\AppData\Local\ProgressBoard\worktrees\timeline`, which is a fresh checkout. There the check passes, so it finds nothing to do. If the card goes back to `todo/`, it will come back here again.
+- **No criterion is wrong.** The diff in 22c2bde changes style only. The tests are the same before and after: 37 tests, 92 assertions.
+
+The work looks finished. One step on your copy is left. In `C:\Dev\timeline`, run:
+
+```
+git checkout -- app/Models/GroupMember.php config/cors.php database/migrations/2026_02_25_000200_create_audit_logs_table.php database/migrations/2026_02_25_000300_add_mfa_to_users_table.php database/migrations/2026_02_25_000400_add_google_id_to_users_table.php
+.\vendor\bin\pint.bat --test
+```
+
+If Pint exits 0, move the card to `done/`.
+
+WHY: The repository is already Pint-clean, the builder's worktree cannot see the CRLF files in Rob's copy, and the card looks finished apart from that one local step.
+
+OUTCOME: rob
+
