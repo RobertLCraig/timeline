@@ -397,3 +397,86 @@ VERDICT: defect
 - **#6 was named by the acceptance lens and is not a ticked criterion here**, so nothing was changed: `send` in `EventModal.jsx` sends your own new comment through `merge`, which moves `latest.current` past any comment another member posted since the last poll, so that comment never shows without a reload.
 - **#6 was named by the breakage lens and is not a ticked criterion here**, so nothing was changed: `send` in `EventModal.jsx` passes your own new comment through `merge`, which moves the `since` time past any comment another member posted since the last poll, so that comment never shows without a reload.
 
+### 2026-10-07 review (v20261007111039-c436)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 24s, run by this job rather than reported by the card.
+
+**acceptance: defect**
+
+I checked the code. Criteria #1 to #5 hold. The server code for them is in `CommentController`: `store`, `visibleEvent` (which uses `Event::visibleIn`), `index`, `destroy`, and the `comments-write` limit. The suite is green.
+
+**#6 can fail. The bug that four earlier reviews found is still in the code.**
+
+The bug is in `resources/js/components/views/EventModal.jsx`, in `Comments`:
+- When you post a comment, `send` calls `merge([data.comment])`.
+- `merge` then sets `latest.current` to the time of your new comment.
+- The next poll asks only for comments newer than `latest.current`.
+
+Here is how it fails:
+1. Your pop-up polls at 0 s.
+2. Another member comments at 5 s.
+3. You post at 8 s.
+4. Your next poll asks only for comments after 8 s, so it misses the 5 s comment.
+5. The 5 s comment shows only after you close and open the pop-up again.
+
+This happens when two people comment at about the same time. That is the case #6 is about.
+
+**Fix:** In `send`, add your comment to the list, but do not change `latest.current`. One way is to give `merge` a flag that skips the marker update.
+
+UNMET: #6 `send` in `EventModal.jsx` puts your own new comment through `merge`, which moves `latest.current` past any comment another member posted since the last poll, so that comment never shows without a reload.
+
+VERDICT: defect
+
+**scope: sound**
+
+I checked scope only. The question is: did the work do more than the card asked, or leave part of it undone? The answer is no on both.
+
+**What I checked**
+- All the comments work is in one commit, `c5f2499`. Every file in it belongs to this card. The other files in the big diff come from cards 0006, 0009, 0010 and 0012.
+- The only change in `GroupTimeline.jsx` is one line. It passes `canComment={isMember}` to `EventModal`, and comments need that. It does not add comments to the vertical timeline view.
+- The "Not this card" list is not crossed. There is no WebSocket, Reverb, Pusher or long-running process. There are no notifications. There are no reactions, threads, comment edits or MCP comment tools.
+- `Event::visibleIn` in `app/Models/Event.php` is not extra work. Plan step 1 asked for the visibility rule to live in one place.
+- Card 0014 is only written down, not built.
+- All five tasks are done.
+
+**Outside my lens**
+The `since` bug is still in `EventModal.jsx`, in `Comments`. When you post, `send` calls `merge`, and `merge` moves `latest.current` past comments from other members. This is a bug, not a scope problem, so I write no `UNMET:` line for it. The breakage reviewer covers it.
+
+VERDICT: sound
+
+**breakage: defect**
+
+I tried to break the comments code. One bug is still there. Four earlier reviews found it, and it is not fixed.
+
+**The bug**
+
+It is in `resources/js/components/views/EventModal.jsx`, in `Comments`, in the `send` and `merge` functions.
+
+- When you post a comment, `send` calls `merge([data.comment])`.
+- `merge` then moves `latest.current` to the time of your new comment. `latest.current` is the "newer than" time for the next poll (the check for new comments every 12 s).
+- Another member's comment can be older than your post but newer than your last poll. The next poll skips that comment.
+
+**Example**
+
+1. Your screen polls at 0 s.
+2. Another member comments at 5 s.
+3. You post at 8 s.
+4. Your next poll asks only for comments after 8 s. You do not see the 5 s comment until you close and open the pop-up again.
+
+The tests check only the server, so they do not find this bug.
+
+**The fix:** in `send`, add your own comment to the list, but do not change `latest.current`.
+
+**A smaller problem:** if another person deletes a comment, it stays on your screen until you open the pop-up again.
+
+UNMET: #6 `send` in `EventModal.jsx` passes your own new comment through `merge`, which moves `latest.current` past any comment another member posted since the last poll, so that comment never shows without a reload.
+
+VERDICT: defect
+
+**acceptance**
+
+- **#6 was named by the acceptance lens and is not a ticked criterion here**, so nothing was changed: `send` in `EventModal.jsx` puts your own new comment through `merge`, which moves `latest.current` past any comment another member posted since the last poll, so that comment never shows without a reload.
+- **#6 was named by the breakage lens and is not a ticked criterion here**, so nothing was changed: `send` in `EventModal.jsx` passes your own new comment through `merge`, which moves `latest.current` past any comment another member posted since the last poll, so that comment never shows without a reload.
+
