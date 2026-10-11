@@ -81,3 +81,5 @@ WHY: The repository is already Pint-clean, the builder's worktree cannot see the
 
 OUTCOME: rob
 
+**2026-10-11** Finished in `C:\Dev\timeline` (attended clear-down). The `git checkout --` this card names does nothing: git sees no change in the five files, so it skips them and they stayed `w/crlf`. Deleting the five and checking them out again did it: `git ls-files --eol` now shows `i/lf w/lf` for all five and `git status` is clean. `.\vendor\bin\pint.bat --test` then printed `{"result":"pass"}` and exited 0. Both criteria hold, so the card moves to `done/`. Other `w/crlf` files remain under `resources/js/` (JSX and CSS); Pint does not read them.
+
