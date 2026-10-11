@@ -26,12 +26,14 @@ was never picked up.
 
 ## Acceptance
 <!-- AC:BEGIN -->
-- [x] WHEN a group owner or admin asks for an export, THE APP SHALL return a zip holding the group's events as JSON and every photo file those events use from `public/uploads/`. proves: `test_an_admin_can_export_a_group_as_a_zip`
-- [x] WHEN a plain member or an outsider asks for an export, THE APP SHALL refuse. proves: `test_a_member_cannot_export_a_group`
-- [x] WHEN an export is imported into a group the user admins, THE APP SHALL recreate its events, categories and photos there. proves: `test_an_export_imports_into_another_group`
-- [x] WHEN the same export is imported twice, THE APP SHALL update the events from the first import, not duplicate them. proves: `test_importing_twice_does_not_duplicate_events`
-- [x] WHEN an import zip holds a path outside its own folder, or a file that is not an image, THE APP SHALL reject that entry and write nothing outside `public/uploads/`. proves: `test_an_import_cannot_write_outside_uploads`
-- [x] WHEN a group is exported, THE ZIP SHALL contain no user ids, email addresses or tokens. proves: `test_an_export_carries_no_personal_account_data`
+- [x] #1 WHEN a group owner or admin asks for an export, THE APP SHALL return a zip holding the group's events as JSON and every photo file those events use from `public/uploads/`. proves: `test_an_admin_can_export_a_group_as_a_zip`
+- [x] #2 WHEN a plain member or an outsider asks for an export, THE APP SHALL refuse. proves: `test_a_member_cannot_export_a_group`
+- [x] #3 WHEN an export is imported into a group the user admins, THE APP SHALL recreate its events, categories and photos there. proves: `test_an_export_imports_into_another_group`
+- [x] #4 WHEN the same export is imported twice, THE APP SHALL update the events from the first import, not duplicate them. proves: `test_importing_twice_does_not_duplicate_events`
+- [x] #5 WHEN an import zip holds a path outside its own folder, or a file that is not an image, THE APP SHALL reject that entry and write nothing outside `public/uploads/`. proves: `test_an_import_cannot_write_outside_uploads`
+- [x] #6 WHEN a group is exported, THE ZIP SHALL contain no user ids, email addresses or tokens. proves: `test_an_export_carries_no_personal_account_data`
+- [x] #7 WHEN an admin exports a group, THE ZIP SHALL leave out every other member's event whose `visibility` or `social_visibility` is `private`, and keep the admin's own. proves: `test_an_admin_export_leaves_out_other_members_private_events`
+- [x] #8 WHEN a group is exported, THE APP SHALL write nothing to the events table, and loading that zip back into the same group SHALL still update its events rather than duplicate them. proves: `test_an_export_writes_nothing_to_the_events_table`
 <!-- AC:END -->
 
 ## Tasks
@@ -184,3 +186,5 @@ OUTCOME: question
 
 
 **2026-10-11** **Decided:** **2026-10-11** **Decided:** A: an admin export leaves out other members' private events. Stop the GET export writing import_hash either way.
+
+**2026-10-11** Built Rob's answer in an attended clear-down session (commit `3267068`, branch `cleardown/0009-0011-0012`, fast-forwarded to `main`). Added #7 and #8 for the two halves of the answer. #7: the export already left other members' private events out; `test_an_admin_export_leaves_out_other_members_private_events` now pins it (it passes on the old code too, which is expected, because the behaviour was already there). #8: `TimelineExportController::export` no longer stamps or saves anything. An event with no `import_hash` gets `derivedHash()` (the same sha1 as before) in the zip only. `import()` maps the target group's hash-less events by that derived hash, and on a match writes the hash onto that event (a POST, so the write is allowed) before `EventCreator::importUpsert`, so a zip loaded back into its own group still updates rather than duplicates. `test_an_export_writes_nothing_to_the_events_table` compares every events row before and after the export, then imports the zip into its own group twice and expects `created 0, updated 2` both times. Watched red on the old controller: the row diff showed `import_hash` going from null to a hash. Suite 62 tests / 269 assertions green, `pint --test` passed. Still open and not a criterion: the scope lens's two other points (the Tasks boxes, and ext-zip on production; nobody has checked hPanel). Moving to `ai-review/`.

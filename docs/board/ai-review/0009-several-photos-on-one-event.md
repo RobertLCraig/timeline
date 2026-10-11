@@ -33,8 +33,8 @@ thinner than the family's real record of the day.
 - [x] #3 WHEN an event is saved with more photos than the limit, THE APP SHALL refuse it with a validation error. proves: `test_an_event_with_too_many_photos_is_rejected`
 - [x] #4 WHEN a user who may not edit an event tries to change its photos, through REST or MCP, THE APP SHALL refuse. proves: `test_a_non_owner_cannot_change_event_photos`
 - [x] #5 WHEN an existing event with only `image_url` is read, THE APP SHALL return it as a one-photo gallery. proves: `test_a_legacy_event_reads_as_a_one_photo_gallery`
-- [ ] #6 WHEN the event pop-up opens on an event with several photos, THE APP SHALL let the user step through them. proves: manual - a browser check of `EventModal` on `timeline.test`
-- [ ] #7 WHEN an MCP import is run again with the same `import_hash` and no photo fields, THE APP SHALL keep the stored gallery and cover unchanged. proves: `test_a_reimport_without_photo_fields_keeps_the_gallery`
+- [x] #6 WHEN the event pop-up opens on an event with several photos, THE APP SHALL let the user step through them. proves: manual - a browser check of `EventModal` on `timeline.test`
+- [x] #7 WHEN an MCP import is run again with the same `import_hash` and no photo fields, THE APP SHALL keep the stored gallery and cover unchanged. proves: `test_a_reimport_without_photo_fields_keeps_the_gallery`
 <!-- AC:END -->
 
 ## Tasks
@@ -94,4 +94,8 @@ The card's Plan says `.\vendor\bin\pest.bat`; this repo has no Pest, so the suit
 **outcome: rob**
 
 The loop parked this card at its bounce limit, and said: "**2026-10-07** The reviewer returned this card and its finding is the last review entry at the bottom of ## Direction. The loop moved it from todo/ to human-review/ because it has bounced 24 times between todo and ai-review, which is the limit, so it is waiting on a person. THE BUILDER COULD NOT ACT ON THAT FINDING. A reviewer reopens every criterion it reports unmet, and the reviews that sent this card back named no criterion they disproved, so it came back with 5 of 7 criteria still ticked, every session found nothing open to do, and the loop promoted it again on the boxes. Add or reopen the criterion the finding breaks and move it back to todo/, or say here why the finding is wrong." Sent back to todo/ it would be parked again before any build ran, so no manager session was started and it is yours.
+
+**2026-10-11** Built #7 in an attended clear-down session (branch `cleardown/0009-0011-0012`, commit `511abf0`, fast-forwarded to `main`). `PostTimelineEventTool::handle` now passes `image_url` only when the caller sent it, through the same `array_intersect_key` as `image_urls`; the default `'image_url' => ... ?? null` line is gone. `TimelineServer` instructions now say an empty `image_urls` list removes every photo, an empty `image_url` removes only the cover, an empty `album_url` removes the album link, and a field left out keeps what is stored. New test `test_a_reimport_without_photo_fields_keeps_the_gallery` in `tests/Feature/EventPhotosTest.php` posts a 3-photo event over MCP, then re-posts the same `import_hash` twice with no photo fields. Watched red against the old tool: the gallery came back as `['/uploads/3.jpg']`. Green after. Suite: 62 tests, 269 assertions, all passed; `pint --test` passed.
+
+#6 checked with Playwright on http://timeline.test, 1280px, after `npm run build`, logged in as the local admin. Event 3 in `demo` was given three photos for the look and restored afterwards. In the Photos view the pop-up opened at `1 / 3` on the first photo. Next, ArrowRight, ArrowRight (wraps to `1 / 3`), Previous (`3 / 3`) and ArrowLeft (`2 / 3`) each showed the matching image. Pass. Local DB note: the `image_urls` and `event_comments` migrations were pending in `C:\Dev\timeline` and were run (additive, local only). Moving to `ai-review/`.
 

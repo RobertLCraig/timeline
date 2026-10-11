@@ -24,12 +24,12 @@ screen in the app today.
 
 ## Acceptance
 <!-- AC:BEGIN -->
-- [x] WHEN a group member who can see an event posts a comment, THE APP SHALL store it against that event with the author and time. proves: `test_a_member_can_comment_on_an_event_they_can_see`
-- [x] WHEN a user who cannot see an event asks for or posts its comments, THE APP SHALL refuse without saying whether the event exists. proves: `test_comments_on_a_hidden_event_are_not_reachable`
-- [x] WHEN comments are fetched with a `since` time, THE APP SHALL return only the newer ones. proves: `test_comments_since_returns_only_newer_comments`
-- [x] WHEN a comment's author or a group admin/owner deletes it, THE APP SHALL remove it; WHEN anybody else tries, THE APP SHALL refuse. proves: `test_only_the_author_or_an_admin_can_delete_a_comment`
-- [x] WHEN one user posts comments faster than the limit, THE APP SHALL refuse the extra ones. proves: `test_comment_posting_is_rate_limited`
-- [ ] WHEN another member comments while the event pop-up is open, THE APP SHALL show it within the polling interval without a reload. proves: manual - two browsers on `timeline.test`
+- [x] #1 WHEN a group member who can see an event posts a comment, THE APP SHALL store it against that event with the author and time. proves: `test_a_member_can_comment_on_an_event_they_can_see`
+- [x] #2 WHEN a user who cannot see an event asks for or posts its comments, THE APP SHALL refuse without saying whether the event exists. proves: `test_comments_on_a_hidden_event_are_not_reachable`
+- [x] #3 WHEN comments are fetched with a `since` time, THE APP SHALL return only the newer ones. proves: `test_comments_since_returns_only_newer_comments`
+- [x] #4 WHEN a comment's author or a group admin/owner deletes it, THE APP SHALL remove it; WHEN anybody else tries, THE APP SHALL refuse. proves: `test_only_the_author_or_an_admin_can_delete_a_comment`
+- [x] #5 WHEN one user posts comments faster than the limit, THE APP SHALL refuse the extra ones. proves: `test_comment_posting_is_rate_limited`
+- [x] #6 WHEN another member comments while the event pop-up is open, THE APP SHALL show it within the polling interval without a reload. proves: manual - two browsers on `timeline.test`
 <!-- AC:END -->
 
 ## Tasks
@@ -488,4 +488,8 @@ VERDICT: defect
 **outcome: rob**
 
 The loop parked this card at its bounce limit, and said: "**2026-10-07** The reviewer's acceptance lens returned this card defect: I checked the code. Criteria #1 to #5 hold. The server code for them is in `CommentController`: `store`, `visibleEvent` (which uses `Event::visibleIn`), `index`, `destroy`, and the `comments-write` limit. The suite is green. The reviewer's scope lens returned this card sound: I checked scope only. The question is: did the work do more than the card asked, or leave part of it undone? The answer is no on both. The reviewer's breakage lens returned this card defect: I tried to break the comments code. One bug is still there. Four earlier reviews found it, and it is not fixed. The loop moved it from todo/ to human-review/ because it has bounced 5 times between todo and ai-review, which is the limit, so it is waiting on a person. THE BUILDER COULD NOT ACT ON THAT FINDING. A reviewer reopens every criterion it reports unmet, and the reviews that sent this card back named no criterion they disproved, so it came back with 5 of 6 criteria still ticked, every session found nothing open to do, and the loop promoted it again on the boxes. Add or reopen the criterion the finding breaks and move it back to todo/, or say here why the finding is wrong." Sent back to todo/ it would be parked again before any build ran, so no manager session was started and it is yours.
+
+**2026-10-11** Attended clear-down session. Numbered the criteria #1 to #6 (text unchanged). Fixed the reviewers' finding in `Comments` in `resources/js/components/views/EventModal.jsx` (commit `e6a433b`, branch `cleardown/0009-0011-0012`, fast-forwarded to `main`, `public/build` rebuilt): `merge` takes an `advance` flag and `send` calls `merge([data.comment], false)`, so only a poll moves `latest.current`. The thread is sorted by id after each merge, so a comment fetched late lands in its place. Not fixed, and no criterion covers it: a comment another person deletes stays on screen until the pop-up is reopened (the breakage lens's smaller point).
+
+#6 checked with two Playwright browser contexts on http://timeline.test at 1280px: the local admin, and a throwaway member made for the check and deleted after. Both opened "Emma Johnson Is Born" in the Photos view. This is the exact race the reviews described: B posted, then A posted 0.8 s later, before A's next poll. Right after, A showed only its own comment. After A's next poll (14 s later) A showed `B: comment from the second member` then `A: my own post right after`, in that order, with no reload; B showed the same two. Pass. The test comments were deleted. Moving to `ai-review/`.
 
