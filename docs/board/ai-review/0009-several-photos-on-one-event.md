@@ -1,3 +1,6 @@
+---
+no_outward_effect: "browser" is a local Playwright look at timeline.test; nothing is deployed
+---
 # Several photos on one event
 
 ## Why
