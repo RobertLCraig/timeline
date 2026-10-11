@@ -65,15 +65,10 @@ class TimelineExportController extends Controller
                 }
             }
 
-            // Stamp a stable hash on the event, so importing the zip anywhere -
-            // including back into this group - updates instead of duplicating.
-            if ($event->import_hash === null) {
-                $event->import_hash = sha1('timeline-export:'.$event->group_id.':'.$event->id.':'.$event->created_at);
-                $event->saveQuietly();
-            }
-
+            // A GET writes nothing: an event with no import_hash gets a derived
+            // one in the zip only, and import() matches it back to this event.
             return [
-                'import_hash' => $event->import_hash,
+                'import_hash' => $event->import_hash ?? self::derivedHash($event),
                 'title' => $event->title,
                 'description' => $event->description,
                 'event_date' => $event->event_date->toDateString(),
@@ -133,6 +128,13 @@ class TimelineExportController extends Controller
                 + array_filter(['icon' => $cat['icon'] ?? null, 'color' => $cat['color'] ?? null], 'is_string'));
         }
 
+        // Events of this group that were exported without an import_hash, by the
+        // hash the export derived for them, so loading a zip back into its own
+        // group updates them instead of duplicating.
+        $derived = Event::where('group_id', $group->id)->whereNull('import_hash')
+            ->get(['id', 'group_id', 'created_at'])
+            ->keyBy(fn (Event $e) => self::derivedHash($e));
+
         $created = $updated = 0;
         foreach ($json['events'] as $i => $row) {
             $v = Validator::make(is_array($row) ? $row : [], [
@@ -154,6 +156,10 @@ class TimelineExportController extends Controller
                 continue;
             }
             $data = $v->validated();
+
+            if ($match = $derived->pull($data['import_hash'])) {
+                Event::whereKey($match->id)->update(['import_hash' => $data['import_hash']]);
+            }
 
             $urls = [];
             foreach ($data['photos'] ?? [] as $p) {
@@ -180,6 +186,11 @@ class TimelineExportController extends Controller
         }
 
         return response()->json(['created' => $created, 'updated' => $updated, 'rejected' => $rejected]);
+    }
+
+    private static function derivedHash(Event $event): string
+    {
+        return sha1('timeline-export:'.$event->group_id.':'.$event->id.':'.$event->created_at);
     }
 
     /**

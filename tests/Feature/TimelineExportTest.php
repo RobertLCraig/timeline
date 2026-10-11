@@ -239,4 +239,39 @@ class TimelineExportTest extends TestCase
             $this->assertNotContains($forbidden, $keys, "timeline.json carries a '{$forbidden}' key");
         }
     }
+
+    public function test_an_admin_export_leaves_out_other_members_private_events(): void
+    {
+        [$owner, $group] = $this->seededGroup();
+        $admin = User::factory()->create();
+        GroupMember::create(['group_id' => $group->id, 'user_id' => $admin->id, 'role' => 'admin']);
+        $make = fn (User $by, string $title, array $extra = []) => Event::create([
+            'group_id' => $group->id, 'title' => $title, 'event_date' => '2021-01-01', 'created_by' => $by->id,
+        ] + $extra);
+        $make($owner, 'Owner diary', ['visibility' => 'private']);
+        $make($owner, 'Owner secret', ['social_visibility' => 'private']);
+        $make($admin, 'Admin diary', ['visibility' => 'private']);
+
+        $zip = new ZipArchive;
+        $zip->open($this->saveZip($this->export($admin, $group)));
+        $titles = array_column(json_decode($zip->getFromName('timeline.json'), true)['events'], 'title');
+
+        $this->assertEqualsCanonicalizing(['Beach', 'Wedding', 'Admin diary'], $titles);
+    }
+
+    public function test_an_export_writes_nothing_to_the_events_table(): void
+    {
+        [$user, $group] = $this->seededGroup();
+        $before = Event::orderBy('id')->get()->toArray();
+
+        $zip = $this->saveZip($this->export($user, $group)->assertOk());
+
+        $this->assertSame($before, Event::orderBy('id')->get()->toArray());
+        $this->assertSame(0, Event::whereNotNull('import_hash')->count());
+
+        // Loading it back into its own group still updates rather than duplicates.
+        $this->import($user, $group, $zip)->assertOk()->assertJson(['created' => 0, 'updated' => 2]);
+        $this->import($user, $group, $zip)->assertOk()->assertJson(['created' => 0, 'updated' => 2]);
+        $this->assertSame(2, Event::where('group_id', $group->id)->count());
+    }
 }
