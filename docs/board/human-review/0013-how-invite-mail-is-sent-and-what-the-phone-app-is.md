@@ -32,3 +32,5 @@ This shape is copied from calendar `0010` (done) and enhanceify-V2 `0015`. The `
 
 ## Comments
 **2026-10-07** Condensed for Rob. Question 1 was rewritten. The enhanceify.co.uk zone already sends through Fastmail (calendar `0010`, `docs/DECISIONS.md` 2026-09-12), so options A and B are gone and only the app password is left.
+
+**2026-10-11** **2026-10-11** Phone app: D, make the site installable (Rob). The Fastmail SMTP app password is still owed.

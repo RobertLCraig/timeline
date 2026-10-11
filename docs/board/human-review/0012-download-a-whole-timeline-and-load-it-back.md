@@ -182,3 +182,5 @@ WHY: The export leaves out other members' private events on purpose, and only th
 
 OUTCOME: question
 
+
+**2026-10-11** **Decided:** **2026-10-11** **Decided:** A: an admin export leaves out other members' private events. Stop the GET export writing import_hash either way.
