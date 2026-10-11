@@ -27,13 +27,16 @@ function Comments({ slug, eventId, canManage, currentUserId }) {
     const [sending, setSending] = useState(false);
     const latest = useRef(null);
 
-    const merge = (incoming) => {
+    // Only a poll moves the `since` marker. Your own post must not, or a comment
+    // another member wrote between the last poll and your post is skipped.
+    // Ids rise with insertion, so sorting by id keeps the thread in order.
+    const merge = (incoming, advance = true) => {
         if (!incoming.length) return;
         setComments(prev => {
             const seen = new Set(prev.map(c => c.id));
-            return [...prev, ...incoming.filter(c => !seen.has(c.id))];
+            return [...prev, ...incoming.filter(c => !seen.has(c.id))].sort((a, b) => a.id - b.id);
         });
-        latest.current = incoming[incoming.length - 1].created_at;
+        if (advance) latest.current = incoming[incoming.length - 1].created_at;
     };
 
     useEffect(() => {
@@ -67,7 +70,7 @@ function Comments({ slug, eventId, canManage, currentUserId }) {
         setError('');
         try {
             const data = await api.post(url, { body });
-            merge([data.comment]);
+            merge([data.comment], false);
             setBody('');
         } catch (err) {
             setError(err.status === 429 ? 'You are commenting too fast. Wait a minute.' : err.message);
