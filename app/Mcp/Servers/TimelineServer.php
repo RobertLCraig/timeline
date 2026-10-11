@@ -42,8 +42,10 @@ Recommended flow:
 
 Photos: set `image_urls` (an ordered list of up to 20 photos, the first is the
 cover) or `image_url` (the cover alone), and/or `album_url` (a link to a full
-album) when posting or updating an event. On update, pass an empty string to
-remove one. You can also `create_category`, `list_group_members`, and
+album) when posting or updating an event. On update, an empty `image_urls`
+list removes every photo, an empty string for `image_url` removes only the
+cover, and an empty string for `album_url` removes the album link. Leave a
+photo field out to keep what is stored. You can also `create_category`, `list_group_members`, and
 `create_group_invite` (owners/admins only).
 MARKDOWN)]
 class TimelineServer extends Server

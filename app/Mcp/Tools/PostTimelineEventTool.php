@@ -53,7 +53,9 @@ class PostTimelineEventTool extends Tool
 
         // Idempotent import: a repeated import_hash updates the existing event
         // (same ownership rule as an edit) instead of creating a duplicate.
-        [$event, $created] = EventCreator::importUpsert($user, $group, array_intersect_key($validated, ['image_urls' => 1]) + [
+        // Photo fields pass only when sent: a null image_url means "drop the
+        // cover", so sending it by default shrank a gallery on every re-import.
+        [$event, $created] = EventCreator::importUpsert($user, $group, array_intersect_key($validated, ['image_urls' => 1, 'image_url' => 1]) + [
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'event_date' => $validated['event_date'],
@@ -62,7 +64,6 @@ class PostTimelineEventTool extends Tool
             'social_visibility' => $validated['social_visibility'] ?? null,
             // An explicit social_visibility from an agent is treated as an override.
             'visibility_is_override' => isset($validated['social_visibility']),
-            'image_url' => $validated['image_url'] ?? null,
             'album_url' => $validated['album_url'] ?? null,
             'import_hash' => $validated['import_hash'] ?? null,
         ], 'mcp', fn ($existing) => $existing->created_by === $user->id

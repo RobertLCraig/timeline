@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Mcp\Servers\TimelineServer;
+use App\Mcp\Tools\PostTimelineEventTool;
 use App\Models\Event;
 use App\Models\Group;
 use App\Models\GroupMember;
@@ -105,5 +107,22 @@ class EventPhotosTest extends TestCase
             ->assertJsonPath('event.image_urls', ['/uploads/old.jpg']);
         $this->actingAs($user)->getJson("/api/groups/{$group->slug}/events/{$bare->id}")
             ->assertJsonPath('event.image_urls', []);
+    }
+
+    public function test_a_reimport_without_photo_fields_keeps_the_gallery(): void
+    {
+        [$user, $group] = $this->makeUserWithGroup();
+        $photos = ['/uploads/1.jpg', '/uploads/2.jpg', '/uploads/3.jpg'];
+        $post = fn (array $extra) => TimelineServer::actingAs($user, 'api')->tool(PostTimelineEventTool::class, [
+            'group' => $group->slug, 'title' => 'Wedding', 'event_date' => '2020-06-01', 'import_hash' => 'h-wedding',
+        ] + $extra)->assertHasNoErrors();
+
+        $post(['image_urls' => $photos]);
+        $post([]);
+        $post([]);
+
+        $event = Event::where('import_hash', 'h-wedding')->sole();
+        $this->assertSame($photos, $event->image_urls);
+        $this->assertSame('/uploads/1.jpg', $event->image_url);
     }
 }
