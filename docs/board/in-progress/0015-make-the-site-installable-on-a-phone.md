@@ -28,8 +28,8 @@ is used less than an app on the home screen would be.
 
 ## Acceptance
 <!-- AC:BEGIN -->
-- [ ] #1 WHEN the home page is served, IT SHALL link a web app manifest whose `name`, `short_name`, `start_url`, `display: standalone`, theme colour and 192px and 512px icons are all set. proves: `test_the_home_page_links_a_complete_web_app_manifest`
-- [ ] #2 WHEN the site loads, IT SHALL register a service worker served from the site root, so its scope covers every page. proves: `test_a_service_worker_is_served_from_the_root`
+- [x] #1 WHEN the home page is served, IT SHALL link a web app manifest whose `name`, `short_name`, `start_url`, `display: standalone`, theme colour and 192px and 512px icons are all set. proves: `test_the_home_page_links_a_complete_web_app_manifest`
+- [x] #2 WHEN the site loads, IT SHALL register a service worker served from the site root, so its scope covers every page. proves: `test_a_service_worker_is_served_from_the_root`
 - [ ] #3 WHEN the site is opened in Chromium at a phone width, THE BROWSER SHALL report it installable (no manifest errors in the Application panel, and the `beforeinstallprompt` event fires). proves: manual - Playwright on `timeline.test` at 390px, recorded on this card
 <!-- AC:END -->
 
@@ -58,3 +58,27 @@ Stand in the timeline repository on the card's branch. Read `CLAUDE.md` first (s
 
 ## Comments
 **2026-10-11** Raised from `0013`, where Rob chose D (make the site installable) on 2026-10-11.
+
+**2026-10-13** RESULT: partial
+TESTS: +2 new, all green (64 tests, full suite via vendor\bin\phpunit.bat; pint --test passes)
+TOUCHED: tests/Feature/InstallableSiteTest.php
+public/manifest.webmanifest
+public/sw.js
+public/icons/icon-192.png
+public/icons/icon-512.png
+resources/views/app.blade.php
+resources/js/main.jsx
+public/build/manifest.json
+public/build/assets/main-CQg0imu7.js (replaces main-D-l_SlW9.js)
+public/build/assets/mobilenet_v2-B-KXMsG5.js (replaces mobilenet_v2-Cak5fkzL.js)
+OUT-OF-SCOPE: none
+
+#1 and #2 met. Both tests were watched red first: #1 failed on the missing <link rel="manifest">, #2 on the missing public/sw.js.
+
+#3 NOT met. It needs a person: Playwright at 390px, then record on the card that the Application panel shows no manifest errors and beforeinstallprompt fires. Herd serves C:\Dev\timeline, not this worktree, and this sandbox refused to open a port for `php artisan serve`, so no browser saw this build. After the merge, either run `herd secure timeline` and check https://timeline.test, or check on http://localhost (plain-HTTP timeline.test is not a secure context, so the worker will not register there).
+
+What I changed from the Plan: the manifest is linked from resources/views/app.blade.php, not welcome.blade.php. web.php serves `app` for every page; welcome.blade.php is the unused Laravel stub, so a link there would never reach a browser. Theme colour is --color-primary #6366f1; background is --bg-primary #0f0f23. Icons are the Segoe UI Emoji hourglass (the Navbar's logo) on #0f0f23, kept in the middle 55% so a round mask does not clip it.
+
+The card's instructions say pest.bat; this repo has no Pest, only PHPUnit, so I ran vendor\bin\phpunit.bat.
+
+Environment note: `npm run build` failed until `npm ci`, because nsfwjs (in package.json and the lockfile) was missing from node_modules here and in C:\Dev\timeline. No package file changed. The mobilenet_v2 chunk got a new hash from that rebuild.
