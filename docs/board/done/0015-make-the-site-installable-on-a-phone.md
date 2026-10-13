@@ -82,3 +82,62 @@ What I changed from the Plan: the manifest is linked from resources/views/app.bl
 The card's instructions say pest.bat; this repo has no Pest, only PHPUnit, so I ran vendor\bin\phpunit.bat.
 
 Environment note: `npm run build` failed until `npm ci`, because nsfwjs (in package.json and the lockfile) was missing from node_modules here and in C:\Dev\timeline. No package file changed. The mobilenet_v2 chunk got a new hash from that rebuild.
+
+### 2026-10-13 review (v20261013050716-5861)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 2s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+I checked each criterion against the code. I could not break either of the two automatic ones.
+
+- **#1 (manifest is linked and complete):** Met.
+  - `resources/views/app.blade.php` links `/manifest.webmanifest`. `routes/web.php` serves that view for every page.
+  - `public/manifest.webmanifest` sets `name`, `short_name`, `start_url: "/"`, `display: "standalone"` and `theme_color`. It also lists a 192px icon and a 512px icon.
+  - `InstallableSiteTest::test_the_home_page_links_a_complete_web_app_manifest` follows the real link. It reads the JSON and checks each icon's true pixel size with `getimagesize`.
+- **#2 (worker served from the root):** Met.
+  - `public/sw.js` is served at `/sw.js`, so its scope is `/`. It has a `fetch` handler that does nothing and caches nothing.
+  - `resources/js/main.jsx` calls `navigator.serviceWorker.register('/sw.js')`.
+  - The committed build `public/build/assets/main-CQg0imu7.js` holds that call. `public/build/manifest.json` points to that build, so the deployed site will register the worker too.
+- **#3 (browser says installable):** This is a manual check. It is open, so it is not a finding. Nothing in the code stops it from passing.
+  - You must test it on `https://timeline.test` (after `herd secure timeline`) or on `http://localhost`.
+  - The worker will not register on plain `http://timeline.test`.
+
+No criterion is disproved.
+
+VERDICT: sound
+
+**scope: sound**
+
+I checked only scope, and I found no scope defect.
+
+**What I checked**
+- The card's own work is in one commit, `bea2649`. It touches only the files that the Plan names, plus the test and the rebuilt `public/build/`.
+- The other files in the diff are not this card's work. The moves of cards 0009, 0011 and 0012 into `done/` come from separate board commits.
+- **The "Not this card" fence holds:**
+  - `public/sw.js` has only an empty `fetch` listener. It stores nothing, so it does no offline caching and keeps no `/api` or `/mcp` answers.
+  - There are no push notifications and no `push` listener.
+  - There is no React Native or store-app work.
+  - No package was added. `vite-plugin-pwa` is not used, which matches Plan step 1.
+- **One change from the Plan, and it is correct.** The manifest link is in `resources/views/app.blade.php`, not `welcome.blade.php`. `routes/web.php` serves `app` for every page, so a link in `welcome` would never reach a browser.
+- **Nothing is half done, except paperwork.** The four `## Tasks` boxes are still empty, but the work for each one is in the commits. #3 is a manual check, so it is open for Rob. It is not a finding.
+
+**What you do now:** Tick the four Tasks boxes. Then do the #3 check on `http://localhost`, or run `herd secure timeline` and do it on `https://timeline.test`.
+
+VERDICT: sound
+
+**breakage: sound**
+
+I tried to break it. I could not.
+
+- **Manifest (#1):** The `<link rel="manifest">` is in `resources/views/app.blade.php`. Both `/login` and the catch-all route in `routes/web.php` serve that view, so every page gets the link. The `theme-color` meta tag sits on the same line as `@viteReactRefresh`. Blade still compiles that line correctly.
+- **Worker (#2):** `public/sw.js` has a fetch listener that does nothing. It never calls `respondWith` and never caches anything. So the browser sends `/api`, `/mcp`, `/oauth/authorize` and the Google callback to the network as before. `main.jsx` registers `/sw.js` only when `serviceWorker` exists in `navigator`, so old browsers and plain-HTTP pages lose nothing.
+- **Static files:** Herd's nginx and Hostinger's Apache `.htaccess` serve real files in `public/` before Laravel runs. The SPA catch-all therefore cannot take `/sw.js` or `/manifest.webmanifest`.
+- **Build:** The asset hash changed, and `public/build/manifest.json` points to the new file, so nothing is left behind.
+
+#3 is still open, but it is a `proves: manual` check, so it is not a finding. Nothing in the code stops it from passing. Check it on HTTPS or `localhost`.
+
+VERDICT: sound
+
