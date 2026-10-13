@@ -493,3 +493,59 @@ The loop parked this card at its bounce limit, and said: "**2026-10-07** The rev
 
 #6 checked with two Playwright browser contexts on http://timeline.test at 1280px: the local admin, and a throwaway member made for the check and deleted after. Both opened "Emma Johnson Is Born" in the Photos view. This is the exact race the reviews described: B posted, then A posted 0.8 s later, before A's next poll. Right after, A showed only its own comment. After A's next poll (14 s later) A showed `B: comment from the second member` then `A: my own post right after`, in that order, with no reload; B showed the same two. Pass. The test comments were deleted. Moving to `ai-review/`.
 
+### 2026-10-13 review (v20261013044446-9dcb)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 21s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+I checked each of the six criteria against the code. All six hold.
+
+- **#1 (post a comment):** `CommentController::store` in `app/Http/Controllers/CommentController.php` checks the event with `visibleEvent` first. Then it saves the comment with the event, the author and the time.
+- **#2 (hidden event):** `CommentController::visibleEvent` checks that the user is a group member. Then it uses `Event::visibleIn`, which applies both visibility layers. If the user cannot see the event, `notFound` sends the same 404 as for a missing event.
+- **#3 (`since`):** `CommentController::index` sends back only comments with a `created_at` after `since`.
+- **#4 (delete):** `CommentController::destroy` lets the author, a group admin or owner, or a super admin delete a comment. Anybody else gets a 403.
+- **#5 (rate limit):** the `comments-write` limit in `bootstrap/app.php` is on the post route.
+- **#6 (shows without a reload):** this is a manual check, and it is still open for you, Rob. The bug that the earlier reviews found is now fixed. In `resources/js/components/views/EventModal.jsx`, `Comments` → `send` now calls `merge([data.comment], false)`. So your own post no longer moves `latest.current` (the "newer than" time for the next poll). Only a poll moves it. Nothing in the code stops #6 from passing.
+
+What you do now: test #6 in two browsers. Use the calendar, heatmap or photos view, because the vertical timeline view does not open the pop-up.
+
+VERDICT: sound
+
+**scope: sound**
+
+I checked only the scope: did the work do more than the card asked, or leave part of it undone?
+
+**What I checked**
+- All the comments work is in one commit, `c5f2499`, with 17 files. Every file belongs to this card: the migration, `CommentController`, `EventComment`, `Event::visibleIn`, the `comments-write` limit in `bootstrap/app.php`, the routes, `EventModal.jsx`, the CSS, the tests, the rebuilt `public/build/`, `HANDOVER.md` and card 0014.
+- The one-line change in `GroupTimeline.jsx` passes `canComment={isMember}` to `EventModal`. The comment box needs it, so it is not extra work.
+- The later fix, `e6a433b`, touches only the poll marker that earlier reviews asked to fix. It does not add scope.
+- The other files in the big diff come from other cards: 0006, 0009, 0010, 0012 and 0015.
+- The "Not this card" fence holds. There are no WebSockets, Reverb, Pusher or long-running process. There are no notifications. There are no reactions, threads, comment edits or MCP comment tools.
+- `Event::visibleIn` is not extra work, because plan step 1 asked for the rule to live in one place.
+- All five tasks are done.
+
+**Still open:** criterion #6 is a manual test with two browsers. You do that one, Rob.
+
+No criterion is disproved.
+
+VERDICT: sound
+
+**breakage: sound**
+
+I tried to break the comments work. I could not find a new defect.
+
+**The old bug is fixed.** Four earlier reviews found that your own post moved the "since" marker past other people's comments. In `resources/js/components/views/EventModal.jsx`, `Comments` → `merge` now takes an `advance` flag. `send` calls `merge([data.comment], false)`, so your own post does not move `latest.current`. Only a poll moves it. A comment code note now says why.
+
+**Server side is still sound.** In `CommentController`, `visibleEvent` uses `Event::visibleIn`. `EventController::index` uses the same rule. No caller of the old inline rule was left behind.
+
+**One known limit stays. It is written down, so it is not a new defect.** In `CommentController::index`, the "since" time counts whole seconds only. Say another member's comment lands in the same second as the newest comment your last poll got. Then your next poll skips it. The `ponytail:` code note says this. The fix, if it ever matters, is to poll by comment id.
+
+**Small extra:** if someone else deletes a comment, it stays on your screen until you open the pop-up again. No criterion asks for this.
+
+Criterion #6 is a manual test for Rob. Nothing in the code stops it from passing.
+
+VERDICT: sound
+
