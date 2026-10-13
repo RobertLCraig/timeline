@@ -48,3 +48,5 @@ Not this card: the browser-side pre-scan (`0001`, done). The scan code is `Uploa
 ## Comments
 **2026-09-30** #3 was rewritten to describe what `AdminController::reviewFlag` actually does. It records the decision and touches nothing else (card `0002`).
 **2026-10-07** Condensed for Rob. Added the "still wanted?" question and `not_for_the_loop:`.
+
+**2026-10-13** **Decided:** Yes, keep the photo check. Rob still owes the Sightengine signup and the keys file. (Rob, attended clear-down 2026-10-13)
