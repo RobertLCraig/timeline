@@ -102,3 +102,56 @@ The loop parked this card at its bounce limit, and said: "**2026-10-07** The rev
 
 #6 checked with Playwright on http://timeline.test, 1280px, after `npm run build`, logged in as the local admin. Event 3 in `demo` was given three photos for the look and restored afterwards. In the Photos view the pop-up opened at `1 / 3` on the first photo. Next, ArrowRight, ArrowRight (wraps to `1 / 3`), Previous (`3 / 3`) and ArrowLeft (`2 / 3`) each showed the matching image. Pass. Local DB note: the `image_urls` and `event_comments` migrations were pending in `C:\Dev\timeline` and were run (additive, local only). Moving to `ai-review/`.
 
+### 2026-10-13 review (v20261013043234-a4b9)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 22s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+I checked all 7 criteria against the code. I could not break any of them.
+
+- **#1 (photos stored in order):** `EventCreator::photoFields` keeps the list in the order given (`array_values`). The `Event::imageUrls` accessor writes and reads it as JSON. REST and MCP send it through `create` / `applyUpdate`. `GetTimelineEventTool::handle` returns `image_urls`.
+- **#2 (first photo is the cover):** `photoFields` always sets `image_url` to `$urls[0]`.
+- **#3 (too many photos refused):** the limit is `Event::MAX_PHOTOS` (20). The `max:` rule uses it in `EventController::store`, `EventController::update`, and in `handle` in the MCP post and update tools.
+- **#4 (non-owner cannot change photos):** the old edit checks still hold. The importUpsert path also checks the owner, through the authorizer in `PostTimelineEventTool::handle`.
+- **#5 (old event reads as a one-photo gallery):** when the column is NULL, the `Event::imageUrls` accessor gives back `[image_url]`.
+- **#6 (step through photos in the pop-up):** this is a manual check. The card records a Playwright pass, so it is not a finding.
+- **#7 (re-import keeps the gallery):** fixed. `PostTimelineEventTool::handle` now sends `image_url` and `image_urls` only when the caller sent them (it uses `array_intersect_key`). With neither key, `photoFields` returns `[]` and `applyUpdate` does not touch the photos. The old bug, where each re-import removed one photo, cannot happen now.
+
+VERDICT: sound
+
+**scope: sound**
+
+I found no scope problem with this card.
+
+**What I checked**
+- The card's own work is in two commits: `3213346` and `511abf0`. They touch only the files the card's Plan names, plus the docs and `public/build/`.
+- Neither commit touches `UploadController` or `resources/js/lib/nsfwScan.js`, which the card fences off. Other cards changed those files: 0006 (Pint re-spacing, a code-format tool) and the pre-scan stall fixes.
+- `album_url` is still there. There are no captions, no drag reorder and no per-photo visibility.
+- The diff also holds comments, export/import, invite email and the phone install. Those come from cards 0010, 0011, 0012 and 0015, which went in on the same range. They are not this card's work.
+- One extra: the form has a remove button for each photo. The card did not ask for it. But without it you cannot make a gallery smaller, so it is part of letting someone change an event's photos. It is not scope creep.
+- Nothing is half done. Fix #7 is in `PostTimelineEventTool::handle`. It sends `image_url` and `image_urls` through `array_intersect_key`, so it passes only the photo fields the caller sent. The `TimelineServer` instructions text was corrected to match. The Tasks checkboxes are still empty, but the work for each one is in the commits.
+
+No criterion is disproved.
+
+VERDICT: sound
+
+**breakage: sound**
+
+I tried to break the fix for #7, and I could not.
+
+**What I checked:**
+- `PostTimelineEventTool::handle` now sends `image_url` and `image_urls` only when the caller sends them. It uses `array_intersect_key` to do this. A re-import with no photo fields therefore gives `EventCreator::photoFields` no photo key. That function then returns `[]`, so the gallery and the cover do not change.
+- `EventCreator::applyUpdate` and `EventCreator::create` both use `photoFields`, so REST and MCP keep the same rule. `create` puts default values after the photo fields, and the `+` operator keeps the photo fields first, so the defaults do not overwrite them.
+- The `TimelineServer` instructions now match what the code does for each photo field.
+
+**One small thing that is not part of #7:**
+- `PostTimelineEventTool::handle` always sends `album_url` (null when the caller leaves it out). This is old behaviour. So if you run an import again without `album_url`, the album link is removed. The instructions say "Leave a photo field out to keep what is stored", and an album link is not a photo field, so that text is not false.
+- It does not break any criterion on this card. If you want the album link kept on a re-import, that needs a new card.
+
+You do not need to do anything for this card. #6 is a manual check and the build session already did it.
+
+VERDICT: sound
+
