@@ -188,3 +188,67 @@ OUTCOME: question
 **2026-10-11** **Decided:** **2026-10-11** **Decided:** A: an admin export leaves out other members' private events. Stop the GET export writing import_hash either way.
 
 **2026-10-11** Built Rob's answer in an attended clear-down session (commit `3267068`, branch `cleardown/0009-0011-0012`, fast-forwarded to `main`). Added #7 and #8 for the two halves of the answer. #7: the export already left other members' private events out; `test_an_admin_export_leaves_out_other_members_private_events` now pins it (it passes on the old code too, which is expected, because the behaviour was already there). #8: `TimelineExportController::export` no longer stamps or saves anything. An event with no `import_hash` gets `derivedHash()` (the same sha1 as before) in the zip only. `import()` maps the target group's hash-less events by that derived hash, and on a match writes the hash onto that event (a POST, so the write is allowed) before `EventCreator::importUpsert`, so a zip loaded back into its own group still updates rather than duplicates. `test_an_export_writes_nothing_to_the_events_table` compares every events row before and after the export, then imports the zip into its own group twice and expects `created 0, updated 2` both times. Watched red on the old controller: the row diff showed `import_hash` going from null to a hash. Suite 62 tests / 269 assertions green, `pint --test` passed. Still open and not a criterion: the scope lens's two other points (the Tasks boxes, and ext-zip on production; nobody has checked hPanel). Moving to `ai-review/`.
+
+### 2026-10-13 review (v20261013045618-99d9)
+
+**suite**
+
+`vendor\bin\phpunit.bat` exited 0 after 20s, run by this job rather than reported by the card.
+
+**acceptance: sound**
+
+**Acceptance review: all 8 criteria trace to real code.**
+
+1. `TimelineExportController::export` builds `timeline.json` with `ZipArchive`. It adds each `/uploads/` file the group's events use as `photos/<name>`. It covers every photo in `image_urls`, not only the first one.
+2. In `routes/api.php`, the export and import routes sit in the `group.role:owner,admin` block. So a plain member or an outsider gets refused.
+3. `TimelineExportController::import` makes the group's categories with `EventCategory::create` and writes the photos with `importPhotos`. It saves each event through `EventCreator::importUpsert`.
+4. `importUpsert` finds the event by its `import_hash`. A second import updates that event. It does not make a copy.
+5. `TimelineExportController::importPhotos` only takes a file that sits directly in `photos/`. It skips names that start with a dot and files over 5 MB. It checks the bytes really are a jpeg, png, gif or webp. It writes each file as `sha1(content).ext` in `public_path('uploads')`. It never uses `extractTo`.
+6. `export` writes only event fields, the group name and description, and category name, icon and colour. It writes no user ids, emails or tokens.
+7. The `export` query keeps the admin's own events. It drops other members' events when `visibility` or `social_visibility` is `private`.
+8. `export` saves nothing; it only computes `derivedHash` for the zip. `import` matches that hash to the target group's events that have no hash yet. It writes the hash on during the import (a POST), and then updates the event, so no copy is made.
+
+The `phpunit` suite passed before this review. I found no criterion the code fails.
+
+VERDICT: sound
+
+**scope: sound**
+
+**Scope review: no defects, verdict sound.** I read the controller and the UI. I did not change any files.
+
+**Over the fence ("Not this card"):** nothing.
+- `TimelineExportController::export` writes only event fields, the group name and description, and the group's own categories. It writes no users, tokens, audit logs or moderation flags.
+- There is no scheduled backup and no import from other services.
+
+**Did more than the card asked:** nothing that breaks a criterion.
+- Leaving out other members' private events matches Rob's decision of 2026-10-11 ("A"). Criterion #7 now covers it.
+- The GET export no longer writes to the events table. `TimelineExportController::import` writes the hash, and that is a POST, so it is allowed. Criterion #8 covers it.
+- The large diff also holds work from cards 0009, 0010, 0011 and 0015, plus a Pint reformat. That work comes from the branch base, not from this card's commits.
+
+**Left half done:** only paperwork.
+- The four `## Tasks` boxes are still empty, but the work is there. `GroupSettings.jsx` has the "Download Timeline" link and the "Load a Timeline Zip" control. The two routes are in `routes/api.php`. The tests exist. The build is committed. This does not disprove any criterion.
+- Nobody has checked on production whether `ext-zip` is on (hPanel → PHP Extensions). That is a deploy check, not a criterion.
+- Nobody has tried the Download link in Edge.
+
+**What you do now:** tick the four Tasks boxes. Check `ext-zip` in hPanel before the next deploy.
+
+VERDICT: sound
+
+**breakage: sound**
+
+I tried to break the export and import. I could not break a criterion.
+
+**What I checked**
+
+- **Export writes nothing (#8).** `TimelineExportController::export` only reads rows. An event with no hash gets `derivedHash()` in the zip only. Nothing is saved.
+- **Load back into the same group (#4, #8).** `import` builds a map of the target group's hash-less events by `derivedHash`. On a match it writes the hash, then `EventCreator::importUpsert` finds it and updates. The hash includes `group_id`, so a zip from another group cannot match by accident.
+- **Unsafe zips (#5).** `importPhotos` turns `\` into `/` before it takes the base name. The full name must equal `photos/<base>`, so `photos/../x` and `photos\..\x` are refused. The content must read as an image. The file is saved under a new name made from a hash of its content. `extractTo` is never used.
+- **Private events (#7).** The `export` query keeps the admin's own events and drops other members' private ones.
+- **Personal data (#6).** No `created_by`, ids or emails are written.
+
+**Small risk, no criterion broken**
+
+- A hand-made zip can carry another event's `import_hash` and overwrite that event, because `import` passes no authorizer to `importUpsert`. Only owners and admins can import, and they may edit any event anyway.
+
+VERDICT: sound
+
