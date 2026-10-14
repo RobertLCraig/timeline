@@ -62,19 +62,14 @@ class EventController extends Controller
             return response()->json(['message' => 'Group not found.'], 404);
         }
 
-        $event = Event::where('id', $id)
-            ->where('group_id', $group->id)
+        // A hidden event answers exactly like a missing one, so ids reveal nothing.
+        $event = Event::visibleIn($group, Auth::guard('sanctum')->user())
+            ->whereKey($id)
             ->with(['category', 'creator:id,name,avatar_url'])
             ->first();
 
         if (! $event) {
             return response()->json(['message' => 'Event not found.'], 404);
-        }
-
-        $user = Auth::guard('sanctum')->user();
-
-        if (! $event->isVisibleTo($user)) {
-            return response()->json(['message' => 'Access denied.'], 403);
         }
 
         return response()->json(['event' => $event]);

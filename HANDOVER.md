@@ -123,7 +123,8 @@ Events carry **two independent visibility fields**:
 | `public` | 5 |
 
 Both filters are applied when a group timeline is fetched. The rule lives in one place,
-`Event::visibleIn($group, $user)`; the timeline and event comments both use it.
+`Event::visibleIn($group, $user)`; the timeline, the one-event read (`EventController::show` and the
+MCP `get_timeline_event`) and event comments all use it. A hidden event answers like a missing one.
 
 ### Event comments (card 0011)
 

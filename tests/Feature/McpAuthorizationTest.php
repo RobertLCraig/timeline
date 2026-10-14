@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Mcp\Servers\TimelineServer;
 use App\Mcp\Tools\CreateGroupInviteTool;
 use App\Mcp\Tools\DeleteTimelineEventTool;
+use App\Mcp\Tools\GetTimelineEventTool;
 use App\Mcp\Tools\ListTimelineEventsTool;
 use App\Mcp\Tools\PostTimelineEventTool;
 use App\Mcp\Tools\UpdateTimelineEventTool;
@@ -211,5 +212,26 @@ class McpAuthorizationTest extends TestCase
         $this->act($viewer, ListTimelineEventsTool::class, ['group' => $group->slug])
             ->assertSee('Public picnic')
             ->assertDontSee('Family secret');
+    }
+
+    public function test_mcp_get_event_respects_the_social_tier(): void
+    {
+        $owner = User::factory()->create();
+        $group = $this->group($owner);
+        // Default group tier is 'friends', so a 'family' event is above it.
+        $viewer = $this->member($group);
+        $secret = $this->event($group, $owner, ['title' => 'Family secret', 'social_visibility' => 'family']);
+        $picnic = $this->event($group, $owner, ['title' => 'Picnic']);
+        $missingId = $secret->id + 1000;
+
+        $this->act($viewer, GetTimelineEventTool::class, ['event_id' => $secret->id])
+            ->assertHasErrors(["Event #{$secret->id} not found or you don't have access to it."])
+            ->assertDontSee('Family secret');
+        $this->act($viewer, GetTimelineEventTool::class, ['event_id' => $missingId])
+            ->assertHasErrors(["Event #{$missingId} not found or you don't have access to it."]);
+
+        $this->act($viewer, GetTimelineEventTool::class, ['event_id' => $picnic->id])
+            ->assertHasNoErrors()
+            ->assertSee('Picnic');
     }
 }

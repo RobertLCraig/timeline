@@ -27,7 +27,7 @@ class GetTimelineEventTool extends Tool
         ]);
 
         $event = Event::with(['group', 'category:id,name', 'creator:id,name'])->find($validated['event_id']);
-        if (! $event || ! $event->isVisibleTo($user)) {
+        if (! $event || ! Event::visibleIn($event->group, $user)->whereKey($event->id)->exists()) {
             return Response::error("Event #{$validated['event_id']} not found or you don't have access to it.");
         }
 

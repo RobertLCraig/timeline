@@ -93,44 +93,10 @@ class Event extends Model
     }
 
     /**
-     * Check if a user can view this event based on the old group-membership
-     * visibility rules (public / members / private).
-     * Social-tier filtering is applied at the query level in EventController.
-     */
-    public function isVisibleTo(?User $user): bool
-    {
-        if ($this->visibility === 'public') {
-            return true;
-        }
-
-        if (! $user) {
-            return false;
-        }
-
-        if ($user->isSuperAdmin()) {
-            return true;
-        }
-
-        if ($this->visibility === 'members') {
-            return $this->group->getMemberRole($user->id) !== null;
-        }
-
-        if ($this->visibility === 'private') {
-            if ($this->created_by === $user->id) {
-                return true;
-            }
-
-            return $this->group->isAdminOrOwner($user->id);
-        }
-
-        return false;
-    }
-
-    /**
      * The group's events this user may see, by both layers:
      * 1. Old visibility (public/members/private) — who can see the group at all
      * 2. Social visibility tier — based on how the viewer classifies this group
-     * The group timeline and event comments both use this one rule.
+     * The group timeline, one-event reads (REST + MCP) and comments all use this one rule.
      */
     public static function visibleIn(Group $group, ?User $user): Builder
     {
