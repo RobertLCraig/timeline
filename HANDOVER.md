@@ -329,7 +329,7 @@ them** — those two controls live in `app_settings` (above) and setting them in
 ### Not settled: the client-side pre-scan
 
 The browser pre-scan (`resources/js/lib/nsfwScan.js`, called from `EventForm.jsx`) is built but has
-not passed review. It is card `0001` in [docs/board/human-review/](docs/board/human-review/) — read
+not passed review. It is card `0001` on the [board](docs/board/) — read
 the card for its design and its open findings rather than trusting a summary here.
 
 ---
