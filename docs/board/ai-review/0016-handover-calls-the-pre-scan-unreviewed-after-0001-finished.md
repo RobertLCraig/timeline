@@ -23,7 +23,7 @@ Any change to card `0001`, and any other section of `HANDOVER.md`.
 
 ## Acceptance
 <!-- AC:BEGIN -->
-- [ ] WHEN `HANDOVER.md` describes the client-side pre-scan or card `0001`, IT SHALL NOT call it
+- [x] WHEN `HANDOVER.md` describes the client-side pre-scan or card `0001`, IT SHALL NOT call it
       unreviewed or open while the card is in `done/`. proves: none - about prose
 <!-- AC:END -->
 
@@ -31,3 +31,12 @@ Any change to card `0001`, and any other section of `HANDOVER.md`.
 Read `docs/board/done/0001-client-side-nsfw-pre-scan.md` for what was accepted. Rewrite the
 "Not settled: the client-side pre-scan" heading and paragraph, and the last paragraph of
 "Work in flight", in `HANDOVER.md` at the repository root, to match.
+
+## Comments
+
+**2026-10-15** RESULT: done
+TESTS: +0 new, all green (criterion 1 is proves: none; phpunit 67 tests green, pint --test pass)
+TOUCHED: HANDOVER.md
+OUT-OF-SCOPE: none
+
+Rewrote the two places the card's Plan names, nothing else. The heading "Not settled: the client-side pre-scan" is now "Client-side pre-scan", and its paragraph says card 0001 is built, reviewed and in done/, then states what was accepted: nsfwjs MobileNetV2 in the browser, 0.7 constant on Porn/Hentai/Sexy, blocks before POST /api/upload, server scan still runs, admin switch skips it, 15 s model and 5 s settings timeouts fall through. Figures checked against resources/js/lib/nsfwScan.js. The last paragraph of "Work in flight" now names one open moderation card, 0003 (still in human-review/), and says 0001 is finished. No other file links to the old heading anchor. The card's prompt pointed at docs/HANDOVER.md; that file does not exist, the handover is at the repository root as the card's Plan says. pest.bat does not exist here; the runner is phpunit.bat.
