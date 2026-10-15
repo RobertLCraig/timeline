@@ -327,11 +327,17 @@ SIGHTENGINE_API_SECRET=
 `.env.example` also carries `SIGHTENGINE_NUDITY_THRESHOLD` and `NSFW_CHECKS_ENABLED`. **Nothing reads
 them** — those two controls live in `app_settings` (above) and setting them in `.env` does nothing.
 
-### Not settled: the client-side pre-scan
+### Client-side pre-scan — `resources/js/lib/nsfwScan.js`
 
-The browser pre-scan (`resources/js/lib/nsfwScan.js`, called from `EventForm.jsx`) is built but has
-not passed review. It is card `0001` on the [board](docs/board/) — read
-the card for its design and its open findings rather than trusting a summary here.
+Built and reviewed: card `0001` is in [done/](docs/board/done/). `EventForm.jsx` scans a picked photo
+in the browser with `nsfwjs` (MobileNetV2 only, loaded lazily) before anything is sent. A `Porn`,
+`Hentai` or `Sexy` score over `NSFW_THRESHOLD` (0.7, a constant, not the server setting) blocks the
+photo and names the class; nothing reaches `POST /api/upload`. It is a filter in front of the server
+scan, never instead of it: a clean photo still uploads and is still scanned server-side. When
+`nsfw_checks_enabled` is off (read from `GET /api/upload/settings`), the browser scan is skipped and
+the model is never fetched. A model that fails or stalls past 15 s, or a settings request that stalls
+past 5 s, lets the upload through for the server to judge. The card holds the design and the review
+trail.
 
 ---
 
@@ -344,6 +350,6 @@ The five improvements this section used to list are one card, `0004`, because a 
 no order and no acceptance is not a queue: nothing in it can be finished or dropped, so it survives
 forever. Picking one turns it into work.
 
-Content moderation is described above as what it is, not as a plan. Two things about it are open and
-both are cards, not paragraphs: the client-side pre-scan is card `0001`, and proving the server scan
-against a real Sightengine account is card `0003`.
+Content moderation is described above as what it is, not as a plan. One thing about it is open and
+it is a card, not a paragraph: proving the server scan against a real Sightengine account is card
+`0003`. The client-side pre-scan, card `0001`, is finished.
